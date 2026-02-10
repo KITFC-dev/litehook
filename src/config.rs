@@ -24,10 +24,22 @@ pub struct WebhookConfig {
     pub url: String,
 }
 
+fn validate(cfg: &Config) -> Result<()> {
+    if cfg.server.poll_interval_seconds <= 0 {
+        return Err(anyhow::anyhow!("poll_interval_seconds must be greater than 0"));
+    }
+    if cfg.telegram.url.is_empty() {
+        return Err(anyhow::anyhow!("telegram url cannot be empty"));
+    }
+    Ok(())
+}
+
 pub fn load() -> Result<Config> {
-    let cfg = RawConfig::builder()
+    let rawcfg = RawConfig::builder()
         .add_source(File::with_name("config"))
         .build()?;
 
-    Ok(cfg.try_deserialize()?)
+    let cfg: Config = rawcfg.try_deserialize()?;
+    validate(&cfg)?;
+    Ok(cfg)
 }

@@ -1,13 +1,14 @@
 use tracing_subscriber;
 use tokio;
 use std::time::Duration;
+use anyhow::Result;
 
 mod model;
 mod config;
 mod web;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     let cfg = config::load()?;
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
@@ -26,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn run_cycle(channel: &str) -> anyhow::Result<()> {
+async fn run_cycle(channel: &str) -> Result<()> {
     let html = web::fetch_html(channel).await?;
     tracing::info!("{}", html.to_string());
     Ok(())
