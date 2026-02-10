@@ -5,10 +5,14 @@ use std::time::Duration;
 
 use crate::model::Post;
 
-pub async fn fetch_html(url: &str) -> Result<String> {
+pub async fn fetch_html(url: &str) -> Result<String> {    
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
-        .user_agent("litehook/0.1")
+        .user_agent(format!(
+            "{}/{}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        ))
         .build()?;
 
     let html = client.get(url).send().await?.text().await?;
