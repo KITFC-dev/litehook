@@ -1,0 +1,8 @@
+[server]
+poll_interval_seconds = 1
+
+[telegram]
+url = "https://t.me/s/..."
+
+[webhook]
+url = ""

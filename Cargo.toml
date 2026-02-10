@@ -1,0 +1,13 @@
+[package]
+name = "litehook"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.49.0", features = ["full"] }
+reqwest = { version = "0.13", features = ["json"] }
+anyhow = "1.0"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+config = "0.15.19"
+serde = { version = "1.0.228", features = ["derive"] }
