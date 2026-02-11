@@ -22,3 +22,7 @@ target
 
 # Config files
 config.toml
+
+# Data and DB files
+data
+db
