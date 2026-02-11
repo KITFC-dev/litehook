@@ -13,9 +13,7 @@ impl Db {
             "CREATE TABLE IF NOT EXISTS posts (
                 id TEXT PRIMARY KEY,
                 author TEXT,
-                images TEXT,
                 text TEXT,
-                reactions TEXT,
                 views TEXT,
                 date TEXT
             )",
@@ -37,7 +35,7 @@ impl Db {
                 post.date
             ],
         )?;
-        
+
         Ok(())
     }
 
@@ -54,8 +52,6 @@ impl Db {
                 text: row.get(2)?,
                 views: row.get(3)?,
                 date: row.get(4)?,
-                images: None,
-                reactions: None,
             }))
         } else {
             return Ok(None);

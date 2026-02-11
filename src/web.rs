@@ -48,9 +48,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         None => return Ok(Post {
             id: "".to_string(),
             author: None,
-            images: Some(Vec::new()),
             text: None,
-            reactions: Some(Vec::new()),
             views: None,
             date: None,
         }),
@@ -82,9 +80,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     Ok(Post {
         id,
         author,
-        images: Some(Vec::new()),
         text,
-        reactions: Some(Vec::new()),
         views,
         date,
     })
