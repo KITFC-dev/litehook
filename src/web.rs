@@ -1,9 +1,9 @@
 use scraper::{ElementRef, Html, Selector};
-use anyhow::{Ok, Result};
+use anyhow::{Ok, Result, anyhow};
 use reqwest::Client;
 use std::time::Duration;
 
-use crate::model::Post;
+use crate::model::{Post, WebhookPayload};
 
 trait ElementRefExt {
     fn whole_text(&self) -> String;
@@ -32,6 +32,37 @@ pub async fn fetch_html(url: &str) -> Result<String> {
 
     let html = client.get(url).send().await?.text().await?;
     Ok(html)
+}
+
+pub async fn send_webhook(url: &str, post: &Post) -> Result<()> {
+    let client = Client::builder()
+        .timeout(Duration::from_secs(10))
+        .user_agent(format!(
+            "{}/{}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        ))
+        .build()?;
+    
+    let payload = WebhookPayload {
+        id: post.id.clone(),
+        author: post.author.clone(),
+        text: post.text.clone(),
+        views: post.views.clone(),
+        date: post.date.clone(),
+    };
+    
+    let res = client
+        .post(url)
+        .json(&payload)
+        .send()
+        .await?;
+    
+    if !res.status().is_success() {
+        return Err(anyhow!("Webhook failed with status {}", res.status()));
+    }
+
+    Ok(())
 }
 
 async fn parse_post(post: ElementRef<'_>) -> Result<Post> {

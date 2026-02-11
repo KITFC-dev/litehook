@@ -22,9 +22,9 @@ async fn main() -> Result<()> {
 
     let db = init_db()?;
 
-    tracing::info!("listening to {}", cfg.telegram.url);
+    tracing::info!("started listening to {}", cfg.telegram.url);
     loop {
-        if let Err(e) = run_cycle(&cfg.telegram.url, &db).await {
+        if let Err(e) = run_cycle(&cfg, &db).await {
             tracing::error!("{e}");
         }
 
@@ -32,15 +32,16 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn run_cycle(channel: &str, db: &Db) -> Result<()> {
-    let html = web::fetch_html(channel).await?;
+async fn run_cycle(cfg: &config::Config, db: &Db) -> Result<()> {
+    let html = web::fetch_html(&cfg.telegram.url).await?;
     let posts = web::parse_posts(&html).await?;
 
     for post in &posts {
         let p = db.get_posts(&post.id)?;
         if !p.is_some() {
-            db.insert_post(post)?;
             tracing::info!("new post: {}", post.id);
+            db.insert_post(post)?;
+            web::send_webhook(&cfg.webhook.url, post).await?;
         }
     }
 

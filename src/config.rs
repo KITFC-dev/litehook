@@ -28,8 +28,11 @@ fn validate(cfg: &Config) -> Result<()> {
     if cfg.server.poll_interval_seconds <= 0 {
         return Err(anyhow::anyhow!("poll_interval_seconds must be greater than 0"));
     }
-    if cfg.telegram.url.is_empty() {
-        return Err(anyhow::anyhow!("telegram url cannot be empty"));
+    if cfg.telegram.url.is_empty() || !cfg.telegram.url.starts_with("https://") {
+        return Err(anyhow::anyhow!("telegram url cannot be empty and must start with https://"));
+    }
+    if cfg.webhook.url.is_empty() || !cfg.webhook.url.starts_with("https://") {
+        return Err(anyhow::anyhow!("webhook url cannot be empty and must start with https://"));
     }
     Ok(())
 }
