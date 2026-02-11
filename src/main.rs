@@ -29,10 +29,13 @@ async fn main() -> Result<()> {
 
 async fn run_cycle(channel: &str) -> Result<()> {
     let html = web::fetch_html(channel).await?;
-    // tracing::info!("{}", html.to_string());
 
     for post in web::parse_posts(&html).await? {
         tracing::info!("{:?}", post.id);
+        tracing::info!("{:?}", post.author.as_deref().unwrap_or(""));
+        tracing::info!("{:?}", post.text.as_deref().unwrap_or(""));
+        tracing::info!("{:?}", post.views.as_deref().unwrap_or(""));
+        tracing::info!("{:?}", post.date.as_deref().unwrap_or(""));
     }
 
     tracing::info!("{} posts parsed", web::parse_posts(&html).await?.len());

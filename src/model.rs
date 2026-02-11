@@ -1,7 +1,6 @@
 #[allow(dead_code)]
 pub struct Post {
     pub id: String,
-    pub metadata: Option<String>,
     pub author: Option<String>,
     pub images: Option<Vec<String>>,
     pub text: Option<String>,
