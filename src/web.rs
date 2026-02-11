@@ -59,7 +59,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     let id = element
         .value()
         .attr("data-post")
-        .unwrap_or("")
+        .unwrap()
         .to_string();
 
     let author = element
@@ -75,8 +75,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         .map(|el| el.whole_text());
 
     let date = element
-        .select(&date_sel)
-        .next()
+        .select_first(&date_sel)
         .and_then(|el| el.value().attr("datetime"))
         .map(|s| s.to_string());
 
