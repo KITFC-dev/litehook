@@ -1,0 +1,8 @@
+services:
+  litehook:
+    build: .
+    container_name: litehook
+    volumes:
+      - ./data:/app/data
+      - ./config.toml:/app/config.toml:ro
+    restart: unless-stopped
