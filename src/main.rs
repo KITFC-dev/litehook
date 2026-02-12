@@ -4,9 +4,10 @@ use std::time::Duration;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
+use dotenvy::dotenv;
+use std::env;
 
 mod model;
-mod config;
 mod web;
 mod db;
 use db::Db;
@@ -18,22 +19,26 @@ async fn main() -> Result<()> {
         .init();
 
     tracing::info!("loading config");
-    let cfg = config::load()?;
+    dotenv().ok();
 
     let db = init_db()?;
 
-    tracing::info!("started listening to {}", cfg.telegram.url);
+    tracing::info!("started listening to {}", &env::var("CHANNEL_URL").expect("CHANNEL_URL not set"));
     loop {
-        if let Err(e) = run_cycle(&cfg, &db).await {
+        if let Err(e) = run_cycle(&db).await {
             tracing::error!("{e}");
         }
-
-        tokio::time::sleep(Duration::from_secs(cfg.server.poll_interval_seconds)).await;
+        
+        let interval = env::var("POLL_INTERVAL")
+            .expect("POLL_INTERVAL not set")
+            .parse::<u64>()
+            .expect("POLL_INTERVAL must be a valid u64");
+        tokio::time::sleep(Duration::from_secs(interval)).await;
     }
 }
 
-async fn run_cycle(cfg: &config::Config, db: &Db) -> Result<()> {
-    let html = web::fetch_html(&cfg.telegram.url).await?;
+async fn run_cycle(db: &Db) -> Result<()> {
+    let html = web::fetch_html().await?;
     let posts = web::parse_posts(&html).await?;
 
     for post in &posts {
@@ -41,7 +46,7 @@ async fn run_cycle(cfg: &config::Config, db: &Db) -> Result<()> {
         if !p.is_some() {
             tracing::info!("new post: {}", post.id);
             db.insert_post(post)?;
-            web::send_webhook(&cfg, post).await?;
+            web::send_webhook(post).await?;
         }
     }
 

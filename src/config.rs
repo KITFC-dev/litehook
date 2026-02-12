@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+// This file is currently not used
+
 use serde::Deserialize;
 use anyhow::Result;
 use config::{Config as RawConfig, File};

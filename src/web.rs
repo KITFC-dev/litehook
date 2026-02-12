@@ -2,8 +2,8 @@ use scraper::{ElementRef, Html, Selector};
 use anyhow::{Ok, Result, anyhow};
 use reqwest::Client;
 use std::time::Duration;
+use std::env;
 
-use crate::config::Config;
 use crate::model::{Post, WebhookPayload};
 
 trait ElementRefExt {
@@ -21,7 +21,7 @@ impl ElementRefExt for ElementRef<'_> {
     }
 }
 
-pub async fn fetch_html(url: &str) -> Result<String> {
+pub async fn fetch_html() -> Result<String> {
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
         .user_agent(format!(
@@ -31,11 +31,15 @@ pub async fn fetch_html(url: &str) -> Result<String> {
         ))
         .build()?;
 
-    let html = client.get(url).send().await?.text().await?;
+    let html = client.get(&env::var("CHANNEL_URL").expect("CHANNEL_URL not set"))
+        .send()
+        .await?
+        .text()
+        .await?;
     Ok(html)
 }
 
-pub async fn send_webhook(cfg: &Config, post: &Post) -> Result<()> {
+pub async fn send_webhook(post: &Post) -> Result<()> {
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
         .user_agent(format!(
@@ -54,8 +58,8 @@ pub async fn send_webhook(cfg: &Config, post: &Post) -> Result<()> {
     };
     
     let res = client
-        .post(&cfg.webhook.url)
-        .header("x-secret", &cfg.webhook.secret)
+        .post(&env::var("WEBHOOK_URL").expect("WEBHOOK_URL not set"))
+        .header("x-secret", env::var("WEBHOOK_SECRET").unwrap_or("".to_string()))
         .json(&payload)
         .send()
         .await?;

@@ -20,8 +20,9 @@ target
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Config files
+# Config files and .env
 config.toml
+.env
 
 # Data and DB files
 data
