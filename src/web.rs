@@ -1,4 +1,5 @@
 use scraper::{ElementRef, Html, Selector};
+use tokio::time::{sleep, Duration};
 use anyhow::{Ok, Result, anyhow};
 use reqwest::Client;
 
@@ -28,7 +29,7 @@ pub async fn send_webhook(
     url: &str, 
     post: &Post, 
     secret: Option<&str>
-) -> Result<()> {
+) -> Result<reqwest::Response> {
     let payload = WebhookPayload {
         id: post.id.clone(),
         author: post.author.clone(),
@@ -43,12 +44,32 @@ pub async fn send_webhook(
         .json(&payload)
         .send()
         .await?;
-    
+
     if !res.status().is_success() {
-        return Err(anyhow!("Webhook failed with status {}", res.status()));
+        return Err(anyhow!(res.status()));
     }
 
-    Ok(())
+    Ok(res)
+}
+
+pub async fn send_webhook_retry(
+    client: &Client,
+    url: &str, 
+    post: &Post, 
+    secret: Option<&str>,
+    max_retries: u64
+) -> Result<reqwest::Response> {
+    for att in 1..=max_retries {
+        let res = send_webhook(client, url, post, secret).await;
+        if res.is_ok() {
+            return res;
+        } else if att < max_retries {
+            tracing::warn!("webhook failed ({}/{}): {}", att, max_retries, res.unwrap_err());
+            sleep(Duration::from_secs(1 * att)).await;
+        }
+    }
+
+    Err(anyhow!("webhook failed after {} attempts", max_retries))
 }
 
 async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
