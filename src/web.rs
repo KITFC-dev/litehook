@@ -1,8 +1,6 @@
 use scraper::{ElementRef, Html, Selector};
 use anyhow::{Ok, Result, anyhow};
 use reqwest::Client;
-use std::time::Duration;
-use std::env;
 
 use crate::model::{Post, WebhookPayload};
 
@@ -21,34 +19,16 @@ impl ElementRefExt for ElementRef<'_> {
     }
 }
 
-pub async fn fetch_html() -> Result<String> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .user_agent(format!(
-            "{}/{}",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
-        ))
-        .build()?;
-
-    let html = client.get(&env::var("CHANNEL_URL").expect("CHANNEL_URL not set"))
-        .send()
-        .await?
-        .text()
-        .await?;
-    Ok(html)
+pub async fn fetch_html(client: &Client, url: &str) -> Result<String> {
+    Ok(client.get(url).send().await?.text().await?)
 }
 
-pub async fn send_webhook(post: &Post) -> Result<()> {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(10))
-        .user_agent(format!(
-            "{}/{}",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
-        ))
-        .build()?;
-    
+pub async fn send_webhook(
+    client: &Client,
+    url: &str, 
+    post: &Post, 
+    secret: Option<&str>
+) -> Result<()> {
     let payload = WebhookPayload {
         id: post.id.clone(),
         author: post.author.clone(),
@@ -58,8 +38,8 @@ pub async fn send_webhook(post: &Post) -> Result<()> {
     };
     
     let res = client
-        .post(&env::var("WEBHOOK_URL").expect("WEBHOOK_URL not set"))
-        .header("x-secret", env::var("WEBHOOK_SECRET").unwrap_or("".to_string()))
+        .post(url)
+        .header("x-secret", secret.unwrap_or(""))
         .json(&payload)
         .send()
         .await?;
