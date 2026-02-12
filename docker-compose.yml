@@ -4,5 +4,5 @@ services:
     container_name: litehook
     volumes:
       - ./data:/app/data
-      - ./config.toml:/app/config.toml:ro
+      - ./.env:/app/.env:ro
     restart: unless-stopped
