@@ -41,7 +41,7 @@ async fn run_cycle(cfg: &config::Config, db: &Db) -> Result<()> {
         if !p.is_some() {
             tracing::info!("new post: {}", post.id);
             db.insert_post(post)?;
-            web::send_webhook(&cfg.webhook.url, post).await?;
+            web::send_webhook(&cfg, post).await?;
         }
     }
 

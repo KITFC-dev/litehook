@@ -3,6 +3,7 @@ use anyhow::{Ok, Result, anyhow};
 use reqwest::Client;
 use std::time::Duration;
 
+use crate::config::Config;
 use crate::model::{Post, WebhookPayload};
 
 trait ElementRefExt {
@@ -34,7 +35,7 @@ pub async fn fetch_html(url: &str) -> Result<String> {
     Ok(html)
 }
 
-pub async fn send_webhook(url: &str, post: &Post) -> Result<()> {
+pub async fn send_webhook(cfg: &Config, post: &Post) -> Result<()> {
     let client = Client::builder()
         .timeout(Duration::from_secs(10))
         .user_agent(format!(
@@ -53,7 +54,8 @@ pub async fn send_webhook(url: &str, post: &Post) -> Result<()> {
     };
     
     let res = client
-        .post(url)
+        .post(&cfg.webhook.url)
+        .header("x-secret", &cfg.webhook.secret)
         .json(&payload)
         .send()
         .await?;

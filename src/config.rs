@@ -22,6 +22,7 @@ pub struct TelegramConfig {
 #[derive(Debug, Deserialize)]
 pub struct WebhookConfig {
     pub url: String,
+    pub secret: String,
 }
 
 fn validate(cfg: &Config) -> Result<()> {

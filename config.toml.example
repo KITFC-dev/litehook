@@ -11,3 +11,6 @@ url = ""
 [webhook]
 # Webhook URL
 url = ""
+# Webhook secret that will be passed in x-secret header
+# when sending webhook, you should verify it on server.
+secret = ""
