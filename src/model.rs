@@ -5,6 +5,7 @@ pub struct TmePage {
     pub posts: Vec<Post>,
 }
 
+#[derive(Serialize, Clone)]
 pub struct Post {
     pub id: String,
     pub author: Option<String>,
@@ -13,6 +14,7 @@ pub struct Post {
     pub date: Option<String>,
 }
 
+#[derive(Serialize)]
 pub struct ChannelCounters {
     pub subscribers: Option<String>,
     pub photos: Option<String>,
@@ -20,6 +22,7 @@ pub struct ChannelCounters {
     pub links: Option<String>,
 }
 
+#[derive(Serialize)]
 pub struct Channel {
     pub id: String,
     pub name: Option<String>,
@@ -29,10 +32,7 @@ pub struct Channel {
 }
 
 #[derive(Serialize)]
-pub struct WebhookPayload {
-    pub id: String,
-    pub author: Option<String>,
-    pub text: Option<String>,
-    pub views: Option<String>,
-    pub date: Option<String>,
+pub struct WebhookPayload<'a> {
+    pub channel: &'a Channel,
+    pub new_posts: &'a Vec<Post>,
 }

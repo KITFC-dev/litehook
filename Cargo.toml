@@ -11,7 +11,6 @@ serde = { version = "1.0.228", features = ["derive"] }
 tracing-subscriber = "0.3.22"
 html-to-markdown-rs = "2"
 scraper = "0.25.0"
-futures = "0.3"
 anyhow = "1.0"
 tracing = "0.1.44"
 config = "0.15.19"

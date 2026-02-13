@@ -28,15 +28,13 @@ pub async fn fetch_html(client: &Client, url: &str) -> Result<String> {
 pub async fn send_webhook(
     client: &Client,
     url: &str, 
-    post: &Post, 
+    channel: &Channel,
+    new_posts: &Vec<Post>,
     secret: Option<&str>
 ) -> Result<reqwest::Response> {
     let payload = WebhookPayload {
-        id: post.id.clone(),
-        author: post.author.clone(),
-        text: post.text.clone(),
-        views: post.views.clone(),
-        date: post.date.clone(),
+        channel,
+        new_posts
     };
     
     let res = client
@@ -56,12 +54,13 @@ pub async fn send_webhook(
 pub async fn send_webhook_retry(
     client: &Client,
     url: &str, 
-    post: &Post, 
+    channel: &Channel,
+    new_posts: &Vec<Post>,
     secret: Option<&str>,
     max_retries: u64
 ) -> Result<reqwest::Response> {
     for att in 1..=max_retries {
-        let res = send_webhook(client, url, post, secret).await;
+        let res = send_webhook(client, url, channel, new_posts, secret).await;
         if res.is_ok() {
             return res;
         } else if att < max_retries {
