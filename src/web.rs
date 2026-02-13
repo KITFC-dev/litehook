@@ -1,7 +1,7 @@
 use scraper::{ElementRef, Html, Selector};
 use tokio::time::{sleep, Duration};
 use anyhow::{Ok, Result, anyhow};
-use html_to_markdown_rs::convert;
+use html_to_markdown_rs::{convert};
 use reqwest::Client;
 
 use crate::model::{Channel, ChannelCounters, Post, TmePage, WebhookPayload};
@@ -110,6 +110,24 @@ fn parse_counters(container: ElementRef<'_>) -> Result<ChannelCounters> {
     Ok(data)
 }
 
+fn parse_reactions(container: ElementRef<'_>) -> Result<String> {
+    todo!()
+}
+
+fn parse_media(container: ElementRef<'_>) -> Result<Option<String>> {
+    if let Some(style) = container.value().attr("style") {
+        if let Some(start) = style.find("url('") {
+            let start = start + 5;
+            if let Some(end) = style[start..].find("')") {
+                let url = style[start..start + end].to_string();
+                return Ok(Some(url));
+            }
+        }
+    }
+
+    Ok(None)
+}
+
 fn parse_channel(channel: ElementRef<'_>) -> Result<Channel> {
     let id_sel = Selector::parse("div.tgme_channel_info_header_username a").unwrap();
     let counters_sel = Selector::parse("div.tgme_channel_info_counters").unwrap();
@@ -159,6 +177,8 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         "div.tgme_widget_message_author a.tgme_widget_message_owner_name span"
     ).unwrap();
     let text_sel = Selector::parse("div.tgme_widget_message_text").unwrap();
+    let media_sel = Selector::parse("a.tgme_widget_message_photo_wrap").unwrap();
+    let reactions_sel = Selector::parse("div.tgme_widget_message_reactions").unwrap();
     let views_sel = Selector::parse("span.tgme_widget_message_views").unwrap();
     let date_sel = Selector::parse("a.tgme_widget_message_date time").unwrap();
 
@@ -190,6 +210,11 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         .map(|html| convert(&html.inner_html(), None))
         .transpose()?;
 
+    let media: Option<Vec<String>> = Some(element
+        .select(&media_sel)
+        .filter_map(|el| parse_media(el).ok().flatten())
+        .collect());
+
     let views = element
         .select_first(&views_sel)
         .map(|el| el.whole_text());
@@ -203,7 +228,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         id,
         author,
         text,
-        media: None,
+        media,
         reactions: None,
         views,
         date,

@@ -21,7 +21,7 @@ impl App {
     pub async fn new(cfg: Config) -> Result<Self> {
         tracing::info!("initializing");
         fs::create_dir_all(Path::new("data"))?;
-        let db = Db::new("data/posts.db")?;
+        let db = Db::new("data/litehook.db")?;
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .user_agent(format!(
