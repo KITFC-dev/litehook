@@ -4,7 +4,7 @@ use anyhow::{Ok, Result, anyhow};
 use html_to_markdown_rs::convert;
 use reqwest::Client;
 
-use crate::model::{Post, WebhookPayload};
+use crate::model::{Channel, ChannelCounters, Post, TmePage, WebhookPayload};
 
 trait ElementRefExt {
     fn whole_text(&self) -> String;
@@ -73,6 +73,87 @@ pub async fn send_webhook_retry(
     Err(anyhow!("webhook failed after {} attempts", max_retries))
 }
 
+fn parse_counters(container: ElementRef<'_>) -> Result<ChannelCounters> {
+    let counter_block_sel = Selector::parse("div.tgme_channel_info_counter").unwrap();
+    let value_sel = Selector::parse("span.counter_value").unwrap();
+    let type_sel = Selector::parse("span.counter_type").unwrap();
+    let mut data = ChannelCounters {
+        subscribers: None,
+        photos: None,
+        videos: None,
+        links: None,
+    };
+
+    for block in container.select(&counter_block_sel) {
+        let value = block
+            .select_first(&value_sel)
+            .map(|v| v.whole_text())
+            .unwrap_or_default();
+
+        let kind = block
+            .select_first(&type_sel)
+            .map(|v| v.whole_text())
+            .unwrap_or_default();
+
+        match kind.as_str() {
+            "subscriber" => data.subscribers = Some(value),
+            "subscribers" => data.subscribers = Some(value),
+            "photo" => data.photos = Some(value),
+            "photos" => data.photos = Some(value),
+            "video" => data.videos = Some(value),
+            "videos" => data.videos = Some(value),
+            "link" => data.links = Some(value),
+            "links" => data.links = Some(value),
+            _ => {}
+        }
+    }
+
+    Ok(data)
+}
+
+fn parse_channel(channel: ElementRef<'_>) -> Result<Channel> {
+    let id_sel = Selector::parse("div.tgme_channel_info_header_username a").unwrap();
+    let counters_sel = Selector::parse("div.tgme_channel_info_counters").unwrap();
+    let image_sel = Selector::parse("i.tgme_page_photo_image img").unwrap();
+    let name_sel = Selector::parse("div.tgme_channel_info_header_title span").unwrap();
+    let desc_sel = Selector::parse("div.tgme_channel_info_description").unwrap();
+
+    let id = channel
+        .select_first(&id_sel)
+        .map(|v| v.whole_text())
+        .expect("channel id not found")
+        .replace("@", "");
+
+    let counters = channel
+        .select_first(&counters_sel)
+        .map(parse_counters)
+        .transpose()?
+        .unwrap();
+
+    let name = channel
+        .select_first(&name_sel)
+        .map(|v| v.whole_text());
+
+    let image = channel
+        .select_first(&image_sel)
+        .map(|v| v.value().attr("src").unwrap().to_string());
+
+    let description = channel
+        .select_first(&desc_sel)
+        .map(|html| convert(&html.inner_html(), None))
+        .transpose()?;
+
+    let data = Channel {
+        id,
+        name,
+        image,
+        counters,
+        description,
+    };
+
+    Ok(data)
+}
+
 async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     let msg_sel = Selector::parse("div.tgme_widget_message").unwrap();
     let author_sel = Selector::parse(
@@ -96,7 +177,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     let id = element
         .value()
         .attr("data-post")
-        .unwrap()
+        .expect("post id not found")
         .to_string();
 
     let author = element
@@ -126,15 +207,25 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     })
 }
 
-pub async fn parse_posts(html: &str) -> Result<Vec<Post>> {
+pub async fn parse_page(html: &str) -> Result<TmePage> {
+    let cnl_sel = Selector::parse("div.tgme_channel_info").unwrap();
+    let post_sel = Selector::parse("div.tgme_widget_message_wrap").unwrap();
     let document = Html::parse_document(html);
     let mut posts = Vec::new();
 
-    let post_sel = Selector::parse("div.tgme_widget_message_wrap").unwrap();
+    let channel = document
+        .select(&cnl_sel)
+        .next()
+        .map(parse_channel)
+        .transpose()?
+        .unwrap();
 
     for post in document.select(&post_sel) {
         posts.push(parse_post(post).await?);
     }
 
-    Ok(posts)
+    Ok(TmePage {
+        channel,
+        posts,
+    })
 }

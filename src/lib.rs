@@ -48,10 +48,10 @@ impl App {
 
     async fn run_cycle(&self) -> Result<()> {
         let html = web::fetch_html(&self.client, &self.cfg.channel_url).await?;
-        let posts = web::parse_posts(&html).await?;
+        let page = web::parse_page(&html).await?;
         let mut tasks = FuturesUnordered::new();
 
-        for post in &posts {
+        for post in &page.posts {
             let p = self.db.get_posts(&post.id)?;
 
             if p.is_none() {
