@@ -168,6 +168,8 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
             id: "".to_string(),
             author: None,
             text: None,
+            media: None,
+            reactions: None,
             views: None,
             date: None,
         }),
@@ -201,6 +203,8 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         id,
         author,
         text,
+        media: None,
+        reactions: None,
         views,
         date,
     })

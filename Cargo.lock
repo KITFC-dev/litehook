@@ -1051,6 +1051,7 @@ dependencies = [
  "rusqlite",
  "scraper",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

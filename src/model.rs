@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Serialize;
 
 pub struct TmePage {
@@ -10,6 +12,8 @@ pub struct Post {
     pub id: String,
     pub author: Option<String>,
     pub text: Option<String>,
+    pub media: Option<Vec<String>>,
+    pub reactions: Option<Vec<HashMap<String, u32>>>,
     pub views: Option<String>,
     pub date: Option<String>,
 }
