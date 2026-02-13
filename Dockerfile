@@ -1,14 +1,10 @@
+# Build stage
 FROM rust:1.93.0-bookworm AS builder
 WORKDIR /usr/src/litehook
 COPY . .
-RUN cargo install --path .
+RUN cargo build --release && strip target/release/litehook
 
-# Build final image
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /usr/local/cargo/bin/litehook /usr/local/bin/litehook
-WORKDIR /app
-
-CMD ["litehook"]
+# Runtime stage
+FROM gcr.io/distroless/cc-debian12
+COPY --from=builder /usr/src/litehook/target/release/litehook /litehook
+ENTRYPOINT ["/litehook"]

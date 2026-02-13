@@ -3,6 +3,7 @@ services:
     build: .
     container_name: litehook
     volumes:
-      - ./data:/app/data
-      - ./.env:/app/.env:ro
+      - ./data:/data
+    env_file:
+      - .env
     restart: unless-stopped
