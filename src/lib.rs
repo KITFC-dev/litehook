@@ -55,7 +55,7 @@ impl App {
             let p = self.db.get_posts(&post.id)?;
 
             if p.is_none() {
-                tracing::info!("new post: {:?}", post.text);
+                tracing::info!("new post: {}", post.id);
                 self.db.insert_post(post)?;
                 
                 let client = self.client.clone();

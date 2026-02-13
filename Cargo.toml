@@ -1,7 +1,7 @@
 [package]
 name = "litehook"
 version = "0.6.1"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 rusqlite = { version = "0.29", features = ["bundled"] }
@@ -9,6 +9,7 @@ tokio = { version = "1.49.0", features = ["full"] }
 reqwest = { version = "0.13", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 tracing-subscriber = "0.3.22"
+html-to-markdown-rs = "2"
 scraper = "0.25.0"
 futures = "0.3"
 anyhow = "1.0"

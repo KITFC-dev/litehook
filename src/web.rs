@@ -1,6 +1,7 @@
 use scraper::{ElementRef, Html, Selector};
 use tokio::time::{sleep, Duration};
 use anyhow::{Ok, Result, anyhow};
+use html_to_markdown_rs::convert;
 use reqwest::Client;
 
 use crate::model::{Post, WebhookPayload};
@@ -104,7 +105,8 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
 
     let text = element
         .select_first(&text_sel)
-        .map(|el| el.whole_text());
+        .map(|html| convert(&html.inner_html(), None))
+        .transpose()?;
 
     let views = element
         .select_first(&views_sel)
