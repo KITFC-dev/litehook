@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use scraper::{ElementRef, Html, Selector};
 use tokio::time::{sleep, Duration};
 use anyhow::{Ok, Result, anyhow};
@@ -110,8 +111,30 @@ fn parse_counters(container: ElementRef<'_>) -> Result<ChannelCounters> {
     Ok(data)
 }
 
-fn parse_reactions(container: ElementRef<'_>) -> Result<String> {
-    todo!()
+fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<HashMap<String, String>>> {
+    let reaction_sel = Selector::parse("span.tgme_reaction").unwrap();
+    let emoji_sel = Selector::parse("i.emoji b").unwrap();
+    let mut data: Vec<HashMap<String, String>> = Vec::new();
+
+    for reaction in container.select(&reaction_sel) {
+        let emoji = reaction
+            .select_first(&emoji_sel)
+            .map(|v| v.whole_text())
+            .unwrap_or("unknown".to_string());
+
+        let count = reaction
+            .whole_text()
+            .replace(emoji.as_str(), "")
+            .trim()
+            .to_string();
+
+        data.push(HashMap::from([
+            ("emoji".to_string(), emoji),
+            ("count".to_string(), count)
+        ]));
+    }
+
+    Ok(data)
 }
 
 fn parse_media(container: ElementRef<'_>) -> Result<Option<String>> {
@@ -182,44 +205,44 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     let views_sel = Selector::parse("span.tgme_widget_message_views").unwrap();
     let date_sel = Selector::parse("a.tgme_widget_message_date time").unwrap();
 
-    let element = match post.select(&msg_sel).next() {
-        Some(el) => el,
-        None => return Ok(Post {
-            id: "".to_string(),
-            author: None,
-            text: None,
-            media: None,
-            reactions: None,
-            views: None,
-            date: None,
-        }),
-    };
-
-    let id = element
+    let id = post
+        .select_first(&msg_sel)
+        .expect("post not found")
         .value()
         .attr("data-post")
         .expect("post id not found")
         .to_string();
 
-    let author = element
+    let author = post
         .select_first(&author_sel)
         .map(|el| el.whole_text());
 
-    let text = element
+    let text = post
         .select_first(&text_sel)
         .map(|html| convert(&html.inner_html(), None))
         .transpose()?;
 
-    let media: Option<Vec<String>> = Some(element
+    let media_vec: Vec<String> = post
         .select(&media_sel)
         .filter_map(|el| parse_media(el).ok().flatten())
-        .collect());
+        .collect();
 
-    let views = element
+    let media = if media_vec.is_empty() {
+        None
+    } else {
+        Some(media_vec)
+    };
+
+    let reactions = post
+        .select_first(&reactions_sel)
+        .map(parse_reactions)
+        .transpose()?;
+
+    let views = post
         .select_first(&views_sel)
         .map(|el| el.whole_text());
 
-    let date = element
+    let date = post
         .select_first(&date_sel)
         .and_then(|el| el.value().attr("datetime"))
         .map(|s| s.to_string());
@@ -229,7 +252,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         author,
         text,
         media,
-        reactions: None,
+        reactions,
         views,
         date,
     })

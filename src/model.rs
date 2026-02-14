@@ -13,7 +13,7 @@ pub struct Post {
     pub author: Option<String>,
     pub text: Option<String>,
     pub media: Option<Vec<String>>,
-    pub reactions: Option<Vec<HashMap<String, u32>>>,
+    pub reactions: Option<Vec<HashMap<String, String>>>,
     pub views: Option<String>,
     pub date: Option<String>,
 }
