@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
     let cfg = config::Config::from_dotenv()?;
     let app = App::new(cfg).await?;
 
-    let shutdown = tokio::spawn({
+    let shutdown_handle = tokio::spawn({
         let shutdown_token = app.shutdown.clone();
         async move {
             tokio::signal::ctrl_c().await.unwrap();
@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
         tracing::error!("app failed: {e}");
     }
 
-    shutdown.await.unwrap();
+    shutdown_handle.await.unwrap();
 
     tracing::info!("bye!");
     Ok(())

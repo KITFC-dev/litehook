@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 use scraper::{ElementRef, Html, Selector};
-use tokio::time::{sleep, Duration};
-use anyhow::{Ok, Result, anyhow};
+use anyhow::{Ok, Result};
 use html_to_markdown_rs::{convert};
 use reqwest::Client;
 
-use crate::model::{Channel, ChannelCounters, Post, TmePage, WebhookPayload};
+use crate::model::{Channel, ChannelCounters, Post, TmePage};
 
 trait ElementRefExt {
     fn whole_text(&self) -> String;
@@ -24,53 +23,6 @@ impl ElementRefExt for ElementRef<'_> {
 
 pub async fn fetch_html(client: &Client, url: &str) -> Result<String> {
     Ok(client.get(url).send().await?.text().await?)
-}
-
-pub async fn send_webhook(
-    client: &Client,
-    url: &str, 
-    channel: &Channel,
-    new_posts: &Vec<Post>,
-    secret: Option<&str>
-) -> Result<reqwest::Response> {
-    let payload = WebhookPayload {
-        channel,
-        new_posts
-    };
-    
-    let res = client
-        .post(url)
-        .header("x-secret", secret.unwrap_or(""))
-        .json(&payload)
-        .send()
-        .await?;
-
-    if !res.status().is_success() {
-        return Err(anyhow!(res.status()));
-    }
-
-    Ok(res)
-}
-
-pub async fn send_webhook_retry(
-    client: &Client,
-    url: &str, 
-    channel: &Channel,
-    new_posts: &Vec<Post>,
-    secret: Option<&str>,
-    max_retries: u64
-) -> Result<reqwest::Response> {
-    for att in 1..=max_retries {
-        let res = send_webhook(client, url, channel, new_posts, secret).await;
-        if res.is_ok() {
-            return res;
-        } else if att < max_retries {
-            tracing::warn!("webhook failed ({}/{}): {}", att, max_retries, res.unwrap_err());
-            sleep(Duration::from_secs(1 * att)).await;
-        }
-    }
-
-    Err(anyhow!("webhook failed after {} attempts", max_retries))
 }
 
 fn parse_counters(container: ElementRef<'_>) -> Result<ChannelCounters> {
