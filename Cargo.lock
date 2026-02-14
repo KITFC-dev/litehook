@@ -1040,7 +1040,7 @@ dependencies = [
 
 [[package]]
 name = "litehook"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "config",
@@ -1053,6 +1053,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
 ]

@@ -1,5 +1,7 @@
 use anyhow::Result;
+use tokio::select;
 use tokio::time::{Duration, sleep};
+use tokio_util::sync::CancellationToken;
 use std::fs;
 use std::path::Path;
 
@@ -15,6 +17,7 @@ pub struct App {
     cfg: Config,
     db: Db,
     client: reqwest::Client,
+    pub shutdown: CancellationToken,
 }
 
 impl App {
@@ -31,21 +34,30 @@ impl App {
             ))
             .build()?;
 
-        Ok(Self { cfg, db, client })
+        Ok(Self { cfg, db, client, shutdown: CancellationToken::new() })
     }
 
     pub async fn run(&self) -> Result<()> {
         tracing::info!("started listening to {}", &self.cfg.channel_url);
         loop {
-            if let Err(e) = self.run_cycle().await {
-                tracing::error!("post cycle failed: {e}");
-            }
+            select! {
+                _ = self.shutdown.cancelled() => {
+                    tracing::info!("exiting loop");
+                    return Ok(());
+                }
 
-            sleep(Duration::from_secs(self.cfg.poll_interval)).await;
+                _ = async {
+                    if let Err(e) = self.poll_channel().await {
+                        tracing::error!("post cycle failed: {e}");
+                    }
+
+                    sleep(Duration::from_secs(self.cfg.poll_interval)).await;
+                } => {}
+            }
         }
     }
 
-    async fn run_cycle(&self) -> Result<()> {
+    async fn poll_channel(&self) -> Result<()> {
         let html = web::fetch_html(&self.client, &self.cfg.channel_url).await?;
         let page = web::parse_page(&html).await?;
         let mut new_posts = Vec::new();
