@@ -9,7 +9,7 @@ pub struct TmePage {
 }
 
 /// Telegram post
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, PartialEq, Debug)]
 pub struct Post {
     pub id: String,
     pub author: Option<String>,
