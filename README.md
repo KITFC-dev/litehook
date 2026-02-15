@@ -10,7 +10,7 @@ Fetch public telegram channel and send a webhook on new posts. Litehook will fet
 - [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) version 1.93.0 or higher
 
 > [!TIP]
-> You can install Rust and Cargo using the [rustup](https://rustup.rs/).
+> You can install Rust and Cargo by using [rustup](https://rustup.rs/).
 
 ### Build
 
@@ -42,22 +42,22 @@ Fetch public telegram channel and send a webhook on new posts. Litehook will fet
 
 ## Configuration
 
-Please set these environment variables, for example in your `.env` file.
+Environment variables used by litehook, for example in your `.env` file.
 
 | Environment Variable | Description |
 | --- | --- |
-| POLL_INTERVAL | Poll interval in seconds* |
-| CHANNEL_URL | Telegram channel URL to monitor |
-| WEBHOOK_URL | URL to API endpoint to send webhook to |
+| POLL_INTERVAL | Poll interval in seconds |
+| CHANNEL_URL | Telegram channel URL to monitor (e.g. <https://t.me/s/channel_id>) |
+| WEBHOOK_URL | URL to API endpoint that will receive the webhook |
 | WEBHOOK_SECRET | Webhook secret in header |
 
-\* Set to something reasonable if you don't want to get rate limited, for example if channel is posting rarely set to something like 300-600, otherwise set to something lower.
+> [!TIP]
+> Set `POLL_INTERVAL` to something reasonable if you don't want to get rate limited by telegram, for example if the channel is posting rarely set to something like 300-600 seconds, otherwise set to a lower value.
 
 ## Webhook Documentation
 
 Webhook will be sent to `WEBHOOK_URL` with `POST` method, the server must return a `2xx` HTTP status code, otherwise the webhook will be retried 4 additional times with a 1 second interval.
-
-Webhook will have a `x-secret` header with the webhook secret from `WEBHOOK_SECRET` environment variable that you should verify on server before trusting the payload.
+And will include a `x-secret` header with the webhook secret from `WEBHOOK_SECRET` environment variable that you should verify on server before trusting the payload.
 
 Example of the webhook payload:
 
