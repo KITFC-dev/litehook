@@ -4,11 +4,15 @@ use anyhow::Result;
 
 use crate::model::Post;
 
+/// SQLite database
 pub struct Db {
     conn: Connection,
 }
 
 impl Db {
+    /// Create a new instance of [Db].
+    /// 
+    /// Creates tables if they don't exist.
     pub fn new(path: &str) -> Result<Self> {
         let conn = Connection::open(path)?;
         conn.execute(
@@ -27,6 +31,9 @@ impl Db {
         Ok(Self { conn })
     }
 
+    /// Insert a post into the database
+    /// 
+    /// Returns [Result]
     pub fn insert_post(&self, post: &Post) -> Result<()> {
         let media = self.to_str_json(&post.media)?;
         let reactions = self.to_str_json(&post.reactions)?;
@@ -48,6 +55,9 @@ impl Db {
         Ok(())
     }
 
+    /// Select a post from the database
+    /// 
+    /// Returns [Option<Post>]
     pub fn get_posts(&self, id: &str) -> Result<Option<Post>> {
         let mut statement = self.conn.prepare(
             "SELECT id, author, text, media, reactions, views, date FROM posts WHERE id = ?1",

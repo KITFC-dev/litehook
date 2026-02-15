@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use anyhow::Result;
 
+/// Litehook server configuration
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
 pub struct Config {
@@ -12,6 +13,7 @@ pub struct Config {
 }
 
 impl Config {
+    /// Create a new instance of [Config] with environment variables
     pub fn from_dotenv() -> Result<Self> {
         dotenvy::dotenv().ok();
         Ok(envy::from_env()?)

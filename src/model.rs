@@ -2,11 +2,13 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
+/// Parsed Telegram channel public page
 pub struct TmePage {
     pub channel: Channel,
     pub posts: Vec<Post>,
 }
 
+/// Telegram post
 #[derive(Serialize, Clone)]
 pub struct Post {
     pub id: String,
@@ -18,6 +20,9 @@ pub struct Post {
     pub date: Option<String>,
 }
 
+/// Telegram channel counters
+/// 
+/// Values are strings from channel's page counters (e.g. "1.8M", "1.2k")
 #[derive(Serialize)]
 pub struct ChannelCounters {
     pub subscribers: Option<String>,
@@ -26,6 +31,7 @@ pub struct ChannelCounters {
     pub links: Option<String>,
 }
 
+/// Telegram channel
 #[derive(Serialize)]
 pub struct Channel {
     pub id: String,
@@ -35,8 +41,9 @@ pub struct Channel {
     pub description: Option<String>,
 }
 
+/// Webhook payload with channel and new posts
 #[derive(Serialize)]
 pub struct WebhookPayload<'a> {
     pub channel: &'a Channel,
-    pub new_posts: &'a Vec<Post>,
+    pub new_posts: &'a [Post],
 }

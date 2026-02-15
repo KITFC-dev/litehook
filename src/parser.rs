@@ -210,6 +210,11 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     })
 }
 
+/// Parse Telegram channel page
+/// 
+/// Parses the channel information, all visible posts on page (no scrolling),
+/// 
+/// Returns [TmePage]
 pub async fn parse_page(html: &str) -> Result<TmePage> {
     let cnl_sel = Selector::parse("div.tgme_channel_info").unwrap();
     let post_sel = Selector::parse("div.tgme_widget_message_wrap").unwrap();

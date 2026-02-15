@@ -1,3 +1,8 @@
+//! litehook
+//!
+//! Polls a public Telegram channel page and sends webhook notifications
+//! when new posts are detected. State is stored in SQLite database.
+
 use anyhow::Result;
 use tokio::select;
 use tokio::time::{Duration, sleep};
@@ -15,14 +20,24 @@ mod db;
 mod model;
 mod parser;
 
+/// Core application state for the Litehook server.
+///
+/// Holds configuration, database connection, HTTP client,
+/// and shutdown signal.
 pub struct App {
+    /// Tokio Cancellation token for shutdown signal
+    pub shutdown: CancellationToken,
+
     cfg: Config,
     db: Db,
     client: reqwest::Client,
-    pub shutdown: CancellationToken,
 }
 
 impl App {
+    /// Create a new instance of [App].
+    /// 
+    /// Creates SQLite database in data/litehook.db and creates data dir
+    /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
     pub async fn new(cfg: Config) -> Result<Self> {
         tracing::info!("initializing");
         fs::create_dir_all(Path::new("data"))?;
@@ -39,6 +54,7 @@ impl App {
         Ok(Self { cfg, db, client, shutdown: CancellationToken::new() })
     }
 
+    /// Starts the main polling loop.
     pub async fn run(&self) -> Result<()> {
         tracing::info!("started listening to {}", &self.cfg.channel_url);
         loop {
@@ -59,6 +75,9 @@ impl App {
         }
     }
 
+    /// Poll channel for new posts,
+    /// parses the channel and posts, 
+    /// stores state in database, and sends webhook notifications.
     async fn poll_channel(&self) -> Result<()> {
         let html = parser::fetch_html(&self.client, &self.cfg.channel_url).await?;
         let page = parser::parse_page(&html).await?;
@@ -88,7 +107,7 @@ impl App {
         Ok(())
     }
 
-    pub async fn send_webhook(
+    async fn send_webhook(
         &self,
         url: &str, 
         channel: &Channel,
@@ -114,7 +133,7 @@ impl App {
         Ok(res)
     }
 
-    pub async fn send_webhook_retry(
+    async fn send_webhook_retry(
         &self,
         url: &str, 
         channel: &Channel,
