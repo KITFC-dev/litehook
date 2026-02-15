@@ -128,7 +128,7 @@ impl App {
                 return res;
             } else if att < max_retries {
                 tracing::warn!("webhook failed ({}/{}): {}", att, max_retries, res.unwrap_err());
-                sleep(Duration::from_secs(1 * att)).await;
+                sleep(Duration::from_secs(1)).await;
             }
         }
 
