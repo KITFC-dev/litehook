@@ -51,12 +51,23 @@ impl App {
             ))
             .build()?;
 
-        Ok(Self { cfg, db, client, shutdown: CancellationToken::new() })
+        Ok(Self {
+            shutdown: CancellationToken::new(),
+            cfg,
+            db,
+            client,
+        })
     }
 
     /// Starts the main polling loop.
     pub async fn run(&self) -> Result<()> {
         tracing::info!("started listening to {}", &self.cfg.channel_url);
+
+        self.listener_loop().await
+    }
+
+    /// Loop for poll_channel, handles shutdown signal
+    async fn listener_loop(&self) -> Result<()> {
         loop {
             select! {
                 _ = self.shutdown.cancelled() => {
