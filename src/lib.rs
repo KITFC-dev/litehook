@@ -41,7 +41,7 @@ impl App {
     pub async fn new(cfg: Config) -> Result<Self> {
         tracing::info!("initializing");
         fs::create_dir_all(Path::new("data"))?;
-        let db = Db::new("data/litehook.db")?;
+        let db = Db::new("data/litehook.db").await?;
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .user_agent(format!(
@@ -95,9 +95,9 @@ impl App {
         let mut new_posts = Vec::new();
 
         for post in &page.posts {
-            if self.db.get_posts(&post.id)?.is_none() {
+            if self.db.get_posts(&post.id).await?.is_none() {
                 tracing::info!("new post: {}", post.id);
-                self.db.insert_post(post)?;
+                self.db.insert_post(post).await?;
                 new_posts.push(post.clone());
             }
         }

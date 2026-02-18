@@ -1,4 +1,6 @@
-use rusqlite::{params, Connection};
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::SqlitePool;
+use sqlx::Row;
 use serde_json;
 use anyhow::Result;
 
@@ -6,16 +8,27 @@ use crate::model::Post;
 
 /// SQLite database
 pub struct Db {
-    conn: Connection,
+    /// SQLite connection pool
+    pub pool: SqlitePool,
 }
 
 impl Db {
     /// Create a new instance of [Db].
     /// 
     /// Creates tables if they don't exist.
-    pub fn new(path: &str) -> Result<Self> {
-        let conn = Connection::open(path)?;
-        conn.execute(
+    pub async fn new(path: &str) -> Result<Self> {
+        let (url, conns) = if path == "memory" {
+            (":memory:".to_string(), 1)
+        } else {
+            (format!("sqlite://{}", path), 32)
+        };
+
+        let pool = SqlitePoolOptions::new()
+            .max_connections(conns)
+            .connect(&url)
+            .await?;
+
+        sqlx::query(
             "CREATE TABLE IF NOT EXISTS posts (
                 id TEXT PRIMARY KEY,
                 author TEXT,
@@ -24,33 +37,36 @@ impl Db {
                 reactions TEXT,
                 views TEXT,
                 date TEXT
-            )",
-            [],
-        )?;
+            )"
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
 
-        Ok(Self { conn })
+        Ok(Self { pool })
     }
 
     /// Insert a post into the database
     /// 
     /// Returns [Result]
-    pub fn insert_post(&self, post: &Post) -> Result<()> {
+    pub async fn insert_post(&self, post: &Post) -> Result<()> {
         let media = self.to_str_json(&post.media)?;
         let reactions = self.to_str_json(&post.reactions)?;
 
-        self.conn.execute(
-            "INSERT OR REPLACE INTO posts (id, author, text, media, reactions, views, date)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            params![
-                post.id,
-                post.author,
-                post.text,
-                media,
-                reactions,
-                post.views,
-                post.date
-            ],
-        )?;
+        sqlx::query(
+            "INSERT OR REPLACE INTO posts 
+            (id, author, text, media, reactions, views, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind(&post.id)
+        .bind(&post.author)
+        .bind(&post.text)
+        .bind(media)
+        .bind(reactions)
+        .bind(&post.views)
+        .bind(&post.date)
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }
@@ -58,24 +74,27 @@ impl Db {
     /// Select a post from the database
     /// 
     /// Returns [Option<Post>]
-    pub fn get_posts(&self, id: &str) -> Result<Option<Post>> {
-        let mut statement = self.conn.prepare(
-            "SELECT id, author, text, media, reactions, views, date FROM posts WHERE id = ?1",
-        )?;
-        let mut rows = statement.query([id])?;
+    pub async fn get_posts(&self, id: &str) -> Result<Option<Post>> {
+        let row = sqlx::query(
+            "SELECT id, author, text, media, reactions, views, date 
+            FROM posts WHERE id = ?"
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
 
-        if let Some(row) = rows.next()? {
-            let media_json: String = row.get(3)?;
-            let reactions_json: String = row.get(4)?;
+        if let Some(row) = row {
+            let media_json: String = row.try_get(3)?;
+            let reactions_json: String = row.try_get(4)?;
             
             Ok(Some(Post {
-                id: row.get(0)?,
-                author: row.get(1)?,
-                text: row.get(2)?,
+                id: row.try_get(0)?,
+                author: row.try_get(1)?,
+                text: row.try_get(2)?,
                 media: self.from_str_json(&media_json)?,
                 reactions: self.from_str_json(&reactions_json)?,
-                views: row.get(5)?,
-                date: row.get(6)?,
+                views: row.try_get(5)?,
+                date: row.try_get(6)?,
             }))
         } else {
             return Ok(None);
@@ -101,26 +120,6 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    fn setup() -> Db {
-        // Open in-memory connection
-        let conn = Connection::open_in_memory().unwrap();
-        // Manually create the same table schema
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS posts (
-                id TEXT PRIMARY KEY,
-                author TEXT,
-                text TEXT,
-                media TEXT,
-                reactions TEXT,
-                views TEXT,
-                date TEXT
-            )",
-            [],
-        ).unwrap();
-
-        Db { conn }
-    }
-
     fn sample_post(id: &str) -> Post {
         Post {
             id: id.to_string(),
@@ -142,21 +141,21 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_insert_and_select() {
-        let db = setup();
+    #[tokio::test]
+    async fn test_insert_and_select() {
+        let db = Db::new(":memory:").await.unwrap();
         let post = sample_post("test/1");
 
-        db.insert_post(&post).unwrap();
-        let fetched = db.get_posts(&post.id).unwrap().unwrap();
+        db.insert_post(&post).await.unwrap();
+        let fetched = db.get_posts(&post.id).await.unwrap();
 
-        assert_eq!(fetched, post);
+        assert_eq!(fetched, Some(post));
     }
 
-    #[test]
-    fn test_nonexistent_post() {
-        let db = setup();
-        let post = db.get_posts("test/-1").unwrap();
+    #[tokio::test]
+    async fn test_nonexistent_post() {
+        let db = Db::new(":memory:").await.unwrap();
+        let post = db.get_posts("test/-1").await.unwrap();
 
         assert!(post.is_none());
     }

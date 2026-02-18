@@ -23,7 +23,7 @@ pub struct Post {
 /// Telegram channel counters
 /// 
 /// Values are strings from channel's page counters (e.g. "1.8M", "1.2k")
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ChannelCounters {
     pub subscribers: Option<String>,
     pub photos: Option<String>,
@@ -32,7 +32,7 @@ pub struct ChannelCounters {
 }
 
 /// Telegram channel
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Channel {
     pub id: String,
     pub name: Option<String>,
@@ -42,7 +42,7 @@ pub struct Channel {
 }
 
 /// Webhook payload with channel and new posts
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct WebhookPayload<'a> {
     pub channel: &'a Channel,
     pub new_posts: &'a [Post],
