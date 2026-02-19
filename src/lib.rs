@@ -72,7 +72,7 @@ impl App {
                 let app = Arc::clone(&self);
                 let url = url.clone();
                 let handle = tokio::task::spawn_local(async move {
-                    app.poller_loop(&url).await
+                    app.listen_channel(&url).await
                 });
                 handles.push(handle);
             }
@@ -87,7 +87,7 @@ impl App {
     }
 
     /// Poll loop, handles shutdown signal
-    async fn poller_loop(&self, url: &str) -> Result<()> {
+    async fn listen_channel(&self, url: &str) -> Result<()> {
         loop {
             select! {
                 _ = self.shutdown.cancelled() => {
@@ -95,23 +95,36 @@ impl App {
                     return Ok(());
                 }
 
-                _ = async {
-                    if let Err(e) = self.poll(url).await {
-                        tracing::error!("poll failed: {e}");
+                res = self.poll_cycle(url) => {
+                    if let Err(e) = res {
+                        return Err(e);
                     }
-
-                    sleep(Duration::from_secs(self.cfg.poll_interval)).await;
-                } => {}
+                }
             }
         }
     }
 
-    /// Poll channel for new posts,
-    /// parses the channel and posts, 
+    /// Poll URL with wait
+    async fn poll_cycle(&self, url: &str) -> Result<()> {
+        let res = self.poll(url).await;
+        if let Err(e) = res {
+            tracing::error!("poll failed: {e}");
+            return Err(e);
+        }
+
+        sleep(Duration::from_secs(self.cfg.poll_interval)).await;
+
+        Ok(())
+    }
+
+    /// Poll URL, parses the channel info and posts, 
     /// stores state in database, and sends webhook notifications.
     async fn poll(&self, url: &str) -> Result<()> {
         let html = parser::fetch_html(&self.client, url).await?;
-        let page = parser::parse_page(&html).await?;
+        let page = match parser::parse_page(&html).await? {
+            Some(p) => p,
+            None => return Err(anyhow!("invalid channel: {}", url)),
+        };
         let mut new_posts = Vec::new();
 
         for post in &page.posts {

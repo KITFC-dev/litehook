@@ -211,25 +211,31 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
 /// Parses the channel information, all visible posts on page (no scrolling),
 /// 
 /// Returns [TmePage]
-pub async fn parse_page(html: &str) -> Result<TmePage> {
+pub async fn parse_page(html: &str) -> Result<Option<TmePage>> {
     let cnl_sel = Selector::parse("div.tgme_channel_info").unwrap();
     let post_sel = Selector::parse("div.tgme_widget_message_wrap").unwrap();
     let document = Html::parse_document(html);
     let mut posts = Vec::new();
 
-    let channel = document
+    // Try to parse channel, return None if invalid
+    let channel = match document
         .select(&cnl_sel)
         .next()
         .map(parse_channel)
-        .transpose()?
-        .unwrap();
+        .transpose()? {
+        Some(c) => c,
+        None => {
+            tracing::warn!("could not parse channel");
+            return Ok(None);
+        }
+    };
 
     for post in document.select(&post_sel) {
         posts.push(parse_post(post).await?);
     }
 
-    Ok(TmePage {
+    Ok(Some(TmePage {
         channel,
         posts,
-    })
+    }))
 }
