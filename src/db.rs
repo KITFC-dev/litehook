@@ -1,7 +1,7 @@
+use anyhow::Result;
+use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::types::Json;
-use sqlx::{SqlitePool};
-use anyhow::Result;
 
 use crate::model::{Post, PostRow};
 
@@ -13,7 +13,7 @@ pub struct Db {
 
 impl Db {
     /// Create a new instance of [Db].
-    /// 
+    ///
     /// Creates tables if they don't exist.
     pub async fn new(path: &str) -> Result<Self> {
         // Configure connection pool
@@ -22,12 +22,12 @@ impl Db {
         } else {
             (format!("sqlite://{}", path), 32)
         };
-        
+
         let pool = SqlitePoolOptions::new()
             .max_connections(conns)
             .connect(&url)
             .await?;
-        
+
         // Create tables
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS posts (
@@ -38,7 +38,7 @@ impl Db {
                 reactions TEXT,
                 views TEXT,
                 date TEXT
-            )"
+            )",
         )
         .execute(&pool)
         .await
@@ -48,13 +48,13 @@ impl Db {
     }
 
     /// Insert a post into the database
-    /// 
+    ///
     /// Returns [Result]
     pub async fn insert_post(&self, post: &Post) -> Result<()> {
         sqlx::query(
             "INSERT OR REPLACE INTO posts 
             (id, author, text, media, reactions, views, date)
-            VALUES (?, ?, ?, ?, ?, ?, ?)"
+            VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&post.id)
         .bind(&post.author)
@@ -70,12 +70,12 @@ impl Db {
     }
 
     /// Select a post from the database
-    /// 
+    ///
     /// Returns [Option<Post>]
     pub async fn get_posts(&self, id: &str) -> Result<Option<Post>> {
         let row: Option<PostRow> = sqlx::query_as(
             "SELECT id, author, text, media, reactions, views, date 
-            FROM posts WHERE id = ?"
+            FROM posts WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(&self.pool)

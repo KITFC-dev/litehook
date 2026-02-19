@@ -1,5 +1,5 @@
-use serde::{Deserialize, Deserializer};
 use anyhow::Result;
+use serde::{Deserialize, Deserializer};
 
 /// Litehook server configuration
 #[derive(Debug, Deserialize)]
@@ -21,7 +21,9 @@ impl Config {
     }
 }
 
-fn default_interval() -> u64 { 600 }
+fn default_interval() -> u64 {
+    600
+}
 
 fn deserialize_channels<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where

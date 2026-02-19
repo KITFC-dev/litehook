@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
-use serde::{Deserialize, Serialize};
 
 /// Post reactions
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
@@ -34,7 +34,7 @@ pub struct Post {
 }
 
 /// Telegram channel counters
-/// 
+///
 /// Values are strings from channel's page counters (e.g. "1.8M", "1.2k")
 #[derive(Serialize, Debug)]
 pub struct ChannelCounters {

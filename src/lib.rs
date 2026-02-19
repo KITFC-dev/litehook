@@ -3,18 +3,18 @@
 //! Polls a public Telegram channel page and sends webhook notifications
 //! when new posts are detected. State is stored in SQLite database.
 
-use anyhow::{Ok, Result};
-use tokio::select;
-use tokio::time::{Duration, sleep};
-use tokio_util::sync::CancellationToken;
 use anyhow::anyhow;
+use anyhow::{Ok, Result};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::select;
+use tokio::time::{Duration, sleep};
+use tokio_util::sync::CancellationToken;
 
+use crate::model::{Channel, Post, WebhookPayload};
 use config::Config;
 use db::Db;
-use crate::model::{Channel, Post, WebhookPayload};
 
 pub mod config;
 mod db;
@@ -36,7 +36,7 @@ pub struct App {
 
 impl App {
     /// Create a new instance of [App].
-    /// 
+    ///
     /// Creates SQLite database in data/litehook.db and creates data dir
     /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
     pub async fn new(cfg: Config) -> Result<Self> {
@@ -62,26 +62,29 @@ impl App {
 
     /// Start listening to channels.
     pub async fn run(self: Arc<Self>) -> Result<()> {
-        tracing::info!("started listening to {} channels", &self.cfg.channel_urls.len());
+        tracing::info!(
+            "started listening to {} channels",
+            &self.cfg.channel_urls.len()
+        );
         let local = tokio::task::LocalSet::new();
 
-        local.run_until(async move {
-            let mut handles = Vec::new();
+        local
+            .run_until(async move {
+                let mut handles = Vec::new();
 
-            for url in &self.cfg.channel_urls {
-                let app = Arc::clone(&self);
-                let url = url.clone();
-                let handle = tokio::task::spawn_local(async move {
-                    app.listen_channel(&url).await
-                });
-                handles.push(handle);
-            }
-            
-            for h in handles {
-                let _ = h.await;
-            }
+                for url in &self.cfg.channel_urls {
+                    let app = Arc::clone(&self);
+                    let url = url.clone();
+                    let handle =
+                        tokio::task::spawn_local(async move { app.listen_channel(&url).await });
+                    handles.push(handle);
+                }
 
-        }).await;
+                for h in handles {
+                    let _ = h.await;
+                }
+            })
+            .await;
 
         Ok(())
     }
@@ -117,7 +120,7 @@ impl App {
         Ok(())
     }
 
-    /// Poll URL, parses the channel info and posts, 
+    /// Poll URL, parses the channel info and posts,
     /// stores state in database, and sends webhook notifications.
     async fn poll(&self, url: &str) -> Result<()> {
         let html = parser::fetch_html(&self.client, url).await?;
@@ -134,14 +137,11 @@ impl App {
                 new_posts.push(post.clone());
             }
         }
-        
+
         if !new_posts.is_empty() {
-            let res = self.send_webhook_retry(
-                &self.cfg.webhook_url,
-                &page.channel,
-                &new_posts,
-                5
-            ).await;
+            let res = self
+                .send_webhook_retry(&self.cfg.webhook_url, &page.channel, &new_posts, 5)
+                .await;
 
             if let Err(e) = res {
                 tracing::error!("webhook failed: {e}");
@@ -153,19 +153,19 @@ impl App {
 
     async fn send_webhook(
         &self,
-        url: &str, 
+        url: &str,
         channel: &Channel,
-        new_posts: &Vec<Post>
-    ) -> Result<reqwest::Response> 
-    {
-        let payload = WebhookPayload {
-            channel,
-            new_posts
-        };
-        
-        let res = self.client
+        new_posts: &Vec<Post>,
+    ) -> Result<reqwest::Response> {
+        let payload = WebhookPayload { channel, new_posts };
+
+        let res = self
+            .client
             .post(url)
-            .header("x-secret", self.cfg.webhook_secret.clone().unwrap_or("".to_string()))
+            .header(
+                "x-secret",
+                self.cfg.webhook_secret.clone().unwrap_or("".to_string()),
+            )
             .json(&payload)
             .send()
             .await?;
@@ -179,18 +179,22 @@ impl App {
 
     async fn send_webhook_retry(
         &self,
-        url: &str, 
+        url: &str,
         channel: &Channel,
         new_posts: &Vec<Post>,
-        max_retries: u64
-    ) -> Result<reqwest::Response> 
-    {
+        max_retries: u64,
+    ) -> Result<reqwest::Response> {
         for att in 1..=max_retries {
             let res = self.send_webhook(url, channel, new_posts).await;
             if res.is_ok() {
                 return res;
             } else if att < max_retries {
-                tracing::warn!("webhook failed ({}/{}): {}", att, max_retries, res.unwrap_err());
+                tracing::warn!(
+                    "webhook failed ({}/{}): {}",
+                    att,
+                    max_retries,
+                    res.unwrap_err()
+                );
                 sleep(Duration::from_secs(1)).await;
             }
         }

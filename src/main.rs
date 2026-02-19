@@ -1,7 +1,7 @@
+use anyhow::{Ok, Result};
+use litehook::{App, config};
 use std::sync::Arc;
 use tracing_subscriber::fmt::time::ChronoLocal;
-use anyhow::{Result, Ok};
-use litehook::{App, config};
 
 #[tokio::main]
 async fn main() -> Result<()> {

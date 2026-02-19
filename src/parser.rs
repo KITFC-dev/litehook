@@ -1,7 +1,7 @@
-use scraper::{ElementRef, Html, Selector};
 use anyhow::{Ok, Result};
-use html_to_markdown_rs::{convert};
+use html_to_markdown_rs::convert;
 use reqwest::Client;
+use scraper::{ElementRef, Html, Selector};
 
 use crate::model::{Channel, ChannelCounters, Post, PostReaction, TmePage};
 
@@ -79,7 +79,10 @@ fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<PostReaction>> {
             .trim()
             .to_string();
 
-        data.push(PostReaction { emoji: Some(emoji), count: Some(count) });
+        data.push(PostReaction {
+            emoji: Some(emoji),
+            count: Some(count),
+        });
     }
 
     Ok(data)
@@ -118,9 +121,7 @@ fn parse_channel(channel: ElementRef<'_>) -> Result<Channel> {
         .transpose()?
         .unwrap();
 
-    let name = channel
-        .select_first(&name_sel)
-        .map(|v| v.whole_text());
+    let name = channel.select_first(&name_sel).map(|v| v.whole_text());
 
     let image = channel
         .select_first(&image_sel)
@@ -144,9 +145,9 @@ fn parse_channel(channel: ElementRef<'_>) -> Result<Channel> {
 
 async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
     let msg_sel = Selector::parse("div.tgme_widget_message").unwrap();
-    let author_sel = Selector::parse(
-        "div.tgme_widget_message_author a.tgme_widget_message_owner_name span"
-    ).unwrap();
+    let author_sel =
+        Selector::parse("div.tgme_widget_message_author a.tgme_widget_message_owner_name span")
+            .unwrap();
     let text_sel = Selector::parse("div.tgme_widget_message_text").unwrap();
     let media_sel = Selector::parse("a.tgme_widget_message_photo_wrap").unwrap();
     let reactions_sel = Selector::parse("div.tgme_widget_message_reactions").unwrap();
@@ -161,9 +162,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         .expect("post id not found")
         .to_string();
 
-    let author = post
-        .select_first(&author_sel)
-        .map(|el| el.whole_text());
+    let author = post.select_first(&author_sel).map(|el| el.whole_text());
 
     let text = post
         .select_first(&text_sel)
@@ -186,9 +185,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         .map(parse_reactions)
         .transpose()?;
 
-    let views = post
-        .select_first(&views_sel)
-        .map(|el| el.whole_text());
+    let views = post.select_first(&views_sel).map(|el| el.whole_text());
 
     let date = post
         .select_first(&date_sel)
@@ -207,9 +204,9 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
 }
 
 /// Parse Telegram channel page
-/// 
+///
 /// Parses the channel information, all visible posts on page (no scrolling),
-/// 
+///
 /// Returns [TmePage]
 pub async fn parse_page(html: &str) -> Result<Option<TmePage>> {
     let cnl_sel = Selector::parse("div.tgme_channel_info").unwrap();
@@ -222,7 +219,8 @@ pub async fn parse_page(html: &str) -> Result<Option<TmePage>> {
         .select(&cnl_sel)
         .next()
         .map(parse_channel)
-        .transpose()? {
+        .transpose()?
+    {
         Some(c) => c,
         None => {
             tracing::warn!("could not parse channel");
@@ -234,8 +232,5 @@ pub async fn parse_page(html: &str) -> Result<Option<TmePage>> {
         posts.push(parse_post(post).await?);
     }
 
-    Ok(Some(TmePage {
-        channel,
-        posts,
-    }))
+    Ok(Some(TmePage { channel, posts }))
 }
