@@ -1,12 +1,13 @@
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use anyhow::Result;
 
 /// Litehook server configuration
 #[derive(Debug, Deserialize)]
-#[allow(unused)]
 pub struct Config {
     #[serde(default = "default_interval")]
     pub poll_interval: u64,
+
+    #[serde(deserialize_with = "deserialize_channels")]
     pub channel_urls: Vec<String>,
     pub webhook_url: String,
     pub webhook_secret: Option<String>,
@@ -21,3 +22,25 @@ impl Config {
 }
 
 fn default_interval() -> u64 { 600 }
+
+fn deserialize_channels<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+
+    let channels = raw
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            if s.starts_with("https://") {
+                s.to_string()
+            } else {
+                format!("https://t.me/s/{}", s)
+            }
+        })
+        .collect();
+
+    Ok(channels)
+}
