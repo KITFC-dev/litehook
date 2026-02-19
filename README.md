@@ -47,7 +47,7 @@ Environment variables used by litehook, for example in your `.env` file.
 | Environment Variable | Description |
 | --- | --- |
 | POLL_INTERVAL | Poll interval in seconds |
-| CHANNEL_URL | Telegram channel URL to monitor (e.g. <https://t.me/s/channel_id>) |
+| CHANNEL_URLS | Telegram channel URLs to monitor, separated by "," without spaces (e.g. <https://t.me/s/channel_id>) |
 | WEBHOOK_URL | URL to API endpoint that will receive the webhook |
 | WEBHOOK_SECRET | Webhook secret in header |
 
