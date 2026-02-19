@@ -89,14 +89,13 @@ fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<PostReaction>> {
 }
 
 fn parse_media(container: ElementRef<'_>) -> Result<Option<String>> {
-    if let Some(style) = container.value().attr("style") {
-        if let Some(start) = style.find("url('") {
-            let start = start + 5;
-            if let Some(end) = style[start..].find("')") {
-                let url = style[start..start + end].to_string();
-                return Ok(Some(url));
-            }
-        }
+    if let Some(style) = container.value().attr("style")
+        && let Some(start) = style.find("url('")
+    {
+        let start = start + 5;
+        let end = style[start..].find("')").unwrap();
+        let url = style[start..start + end].to_string();
+        return Ok(Some(url));
     }
 
     Ok(None)

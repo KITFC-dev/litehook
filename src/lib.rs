@@ -3,8 +3,7 @@
 //! Polls a public Telegram channel page and sends webhook notifications
 //! when new posts are detected. State is stored in SQLite database.
 
-use anyhow::anyhow;
-use anyhow::{Ok, Result};
+use anyhow::{Ok, Result, anyhow};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -99,9 +98,7 @@ impl App {
                 }
 
                 res = self.poll_cycle(url) => {
-                    if let Err(e) = res {
-                        return Err(e);
-                    }
+                    res?
                 }
             }
         }
@@ -185,20 +182,19 @@ impl App {
         max_retries: u64,
     ) -> Result<reqwest::Response> {
         for att in 1..=max_retries {
-            let res = self.send_webhook(url, channel, new_posts).await;
-            if res.is_ok() {
-                return res;
-            } else if att < max_retries {
-                tracing::warn!(
-                    "webhook failed ({}/{}): {}",
-                    att,
-                    max_retries,
-                    res.unwrap_err()
-                );
-                sleep(Duration::from_secs(1)).await;
+            match self.send_webhook(url, channel, new_posts).await {
+                std::result::Result::Ok(res) => return Ok(res),
+                Err(e) if att < max_retries => {
+                    tracing::warn!("webhook failed ({}/{}): {}", att, max_retries, e);
+                    sleep(Duration::from_secs(1)).await;
+                }
+                Err(e) => {
+                    tracing::error!("webhook failed after {} attempts: {}", max_retries, e);
+                    return Err(e);
+                }
             }
         }
 
-        Err(anyhow!("webhook failed after {} attempts", max_retries))
+        Err(anyhow!("webhook failed"))
     }
 }
