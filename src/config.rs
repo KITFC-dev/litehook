@@ -7,7 +7,7 @@ use anyhow::Result;
 pub struct Config {
     #[serde(default = "default_interval")]
     pub poll_interval: u64,
-    pub channel_url: String,
+    pub channel_urls: Vec<String>,
     pub webhook_url: String,
     pub webhook_secret: Option<String>,
 }

@@ -3,13 +3,14 @@
 //! Polls a public Telegram channel page and sends webhook notifications
 //! when new posts are detected. State is stored in SQLite database.
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use tokio::select;
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 use anyhow::anyhow;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use config::Config;
 use db::Db;
@@ -59,25 +60,44 @@ impl App {
         })
     }
 
-    /// Starts the main polling loop.
-    pub async fn run(&self) -> Result<()> {
-        tracing::info!("started listening to {}", &self.cfg.channel_url);
+    /// Start listening to channels.
+    pub async fn run(self: Arc<Self>) -> Result<()> {
+        tracing::info!("started listening to {} channels", &self.cfg.channel_urls.len());
+        let local = tokio::task::LocalSet::new();
 
-        self.listener_loop().await
+        local.run_until(async move {
+            let mut handles = Vec::new();
+
+            for url in &self.cfg.channel_urls {
+                let app = Arc::clone(&self);
+                let url = url.clone();
+                let handle = tokio::task::spawn_local(async move {
+                    app.poller_loop(&url).await
+                });
+                handles.push(handle);
+            }
+            
+            for h in handles {
+                let _ = h.await;
+            }
+
+        }).await;
+
+        Ok(())
     }
 
-    /// Loop for poll_channel, handles shutdown signal
-    async fn listener_loop(&self) -> Result<()> {
+    /// Poll loop, handles shutdown signal
+    async fn poller_loop(&self, url: &str) -> Result<()> {
         loop {
             select! {
                 _ = self.shutdown.cancelled() => {
-                    tracing::info!("exiting loop");
+                    tracing::info!("stopped listening to {}", url);
                     return Ok(());
                 }
 
                 _ = async {
-                    if let Err(e) = self.poll_channel().await {
-                        tracing::error!("post cycle failed: {e}");
+                    if let Err(e) = self.poll(url).await {
+                        tracing::error!("poll failed: {e}");
                     }
 
                     sleep(Duration::from_secs(self.cfg.poll_interval)).await;
@@ -89,8 +109,8 @@ impl App {
     /// Poll channel for new posts,
     /// parses the channel and posts, 
     /// stores state in database, and sends webhook notifications.
-    async fn poll_channel(&self) -> Result<()> {
-        let html = parser::fetch_html(&self.client, &self.cfg.channel_url).await?;
+    async fn poll(&self, url: &str) -> Result<()> {
+        let html = parser::fetch_html(&self.client, url).await?;
         let page = parser::parse_page(&html).await?;
         let mut new_posts = Vec::new();
 

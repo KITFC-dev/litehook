@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use tracing_subscriber::fmt::time::ChronoLocal;
 use anyhow::{Result, Ok};
 use litehook::{App, config};
@@ -12,7 +13,7 @@ async fn main() -> Result<()> {
         .init();
 
     let cfg = config::Config::from_dotenv()?;
-    let app = App::new(cfg).await?;
+    let app = Arc::new(App::new(cfg).await?);
 
     let shutdown_handle = tokio::spawn({
         let shutdown_token = app.shutdown.clone();
