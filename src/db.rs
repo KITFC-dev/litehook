@@ -87,8 +87,9 @@ impl Db {
 
 #[cfg(test)]
 mod tests {
+    use crate::model::PostReaction;
+
     use super::*;
-    use std::collections::HashMap;
 
     fn sample_post(id: &str) -> Post {
         Post {
@@ -97,14 +98,14 @@ mod tests {
             text: Some("This is a test!".to_string()),
             media: Some(vec!["https://example.com/image.png".to_string()]),
             reactions: Some(vec![
-                HashMap::from([
-                    ("emoji".to_string(), "🩷".to_string()),
-                    ("count".to_string(), "10".to_string()),
-                ]),
-                HashMap::from([
-                    ("emoji".to_string(), "❄️".to_string()),
-                    ("count".to_string(), "5".to_string()),
-                ]),
+                PostReaction {
+                    emoji: Some("👍".to_string()),
+                    count: Some("5.7K".to_string()),
+                },
+                PostReaction {
+                    emoji: Some("🩷".to_string()),
+                    count: Some("39".to_string()),
+                },
             ]),
             views: Some("1.5K".to_string()),
             date: Some("2026-02-14T15:45:21+00:00".to_string()),

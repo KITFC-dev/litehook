@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use scraper::{ElementRef, Html, Selector};
 use anyhow::{Ok, Result};
 use html_to_markdown_rs::{convert};
 use reqwest::Client;
 
-use crate::model::{Channel, ChannelCounters, Post, TmePage};
+use crate::model::{Channel, ChannelCounters, Post, PostReaction, TmePage};
 
 trait ElementRefExt {
     fn whole_text(&self) -> String;
@@ -63,10 +62,10 @@ fn parse_counters(container: ElementRef<'_>) -> Result<ChannelCounters> {
     Ok(data)
 }
 
-fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<HashMap<String, String>>> {
+fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<PostReaction>> {
     let reaction_sel = Selector::parse("span.tgme_reaction").unwrap();
     let emoji_sel = Selector::parse("i.emoji b").unwrap();
-    let mut data: Vec<HashMap<String, String>> = Vec::new();
+    let mut data: Vec<PostReaction> = Vec::new();
 
     for reaction in container.select(&reaction_sel) {
         let emoji = reaction
@@ -80,10 +79,7 @@ fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<HashMap<String, Stri
             .trim()
             .to_string();
 
-        data.push(HashMap::from([
-            ("emoji".to_string(), emoji),
-            ("count".to_string(), count)
-        ]));
+        data.push(PostReaction { emoji: Some(emoji), count: Some(count) });
     }
 
     Ok(data)

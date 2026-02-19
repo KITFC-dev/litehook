@@ -1,13 +1,12 @@
-use std::collections::HashMap;
-
 use sqlx::FromRow;
 use sqlx::types::Json;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-/// Parsed Telegram channel public page
-pub struct TmePage {
-    pub channel: Channel,
-    pub posts: Vec<Post>,
+/// Post reactions
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+pub struct PostReaction {
+    pub emoji: Option<String>,
+    pub count: Option<String>,
 }
 
 /// DB row for Telegram Post
@@ -17,7 +16,7 @@ pub struct PostRow {
     pub author: String,
     pub text: String,
     pub media: Json<Option<Vec<String>>>,
-    pub reactions: Json<Option<Vec<HashMap<String, String>>>>,
+    pub reactions: Json<Option<Vec<PostReaction>>>,
     pub views: String,
     pub date: String,
 }
@@ -29,7 +28,7 @@ pub struct Post {
     pub author: Option<String>,
     pub text: Option<String>,
     pub media: Option<Vec<String>>,
-    pub reactions: Option<Vec<HashMap<String, String>>>,
+    pub reactions: Option<Vec<PostReaction>>,
     pub views: Option<String>,
     pub date: Option<String>,
 }
@@ -60,6 +59,12 @@ pub struct Channel {
 pub struct WebhookPayload<'a> {
     pub channel: &'a Channel,
     pub new_posts: &'a [Post],
+}
+
+/// Parsed Telegram channel public page
+pub struct TmePage {
+    pub channel: Channel,
+    pub posts: Vec<Post>,
 }
 
 /// Convert PostRow to Post
