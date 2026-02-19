@@ -1,11 +1,25 @@
 use std::collections::HashMap;
 
+use sqlx::FromRow;
+use sqlx::types::Json;
 use serde::Serialize;
 
 /// Parsed Telegram channel public page
 pub struct TmePage {
     pub channel: Channel,
     pub posts: Vec<Post>,
+}
+
+/// DB row for Telegram Post
+#[derive(FromRow)]
+pub struct PostRow {
+    pub id: String,
+    pub author: String,
+    pub text: String,
+    pub media: Json<Option<Vec<String>>>,
+    pub reactions: Json<Option<Vec<HashMap<String, String>>>>,
+    pub views: String,
+    pub date: String,
 }
 
 /// Telegram post
@@ -46,4 +60,19 @@ pub struct Channel {
 pub struct WebhookPayload<'a> {
     pub channel: &'a Channel,
     pub new_posts: &'a [Post],
+}
+
+/// Convert PostRow to Post
+impl From<PostRow> for Post {
+    fn from(row: PostRow) -> Self {
+        Self {
+            id: row.id,
+            author: Some(row.author),
+            text: Some(row.text),
+            media: row.media.0,
+            reactions: row.reactions.0,
+            views: Some(row.views),
+            date: Some(row.date),
+        }
+    }
 }

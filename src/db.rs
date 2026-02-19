@@ -1,10 +1,9 @@
 use sqlx::sqlite::SqlitePoolOptions;
-use sqlx::SqlitePool;
-use sqlx::Row;
-use serde_json;
+use sqlx::types::Json;
+use sqlx::{SqlitePool};
 use anyhow::Result;
 
-use crate::model::Post;
+use crate::model::{Post, PostRow};
 
 /// SQLite database
 pub struct Db {
@@ -17,17 +16,19 @@ impl Db {
     /// 
     /// Creates tables if they don't exist.
     pub async fn new(path: &str) -> Result<Self> {
+        // Configure connection pool
         let (url, conns) = if path == "memory" {
             (":memory:".to_string(), 1)
         } else {
             (format!("sqlite://{}", path), 32)
         };
-
+        
         let pool = SqlitePoolOptions::new()
             .max_connections(conns)
             .connect(&url)
             .await?;
-
+        
+        // Create tables
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS posts (
                 id TEXT PRIMARY KEY,
@@ -50,9 +51,6 @@ impl Db {
     /// 
     /// Returns [Result]
     pub async fn insert_post(&self, post: &Post) -> Result<()> {
-        let media = self.to_str_json(&post.media)?;
-        let reactions = self.to_str_json(&post.reactions)?;
-
         sqlx::query(
             "INSERT OR REPLACE INTO posts 
             (id, author, text, media, reactions, views, date)
@@ -61,8 +59,8 @@ impl Db {
         .bind(&post.id)
         .bind(&post.author)
         .bind(&post.text)
-        .bind(media)
-        .bind(reactions)
+        .bind(Json(&post.media))
+        .bind(Json(&post.reactions))
         .bind(&post.views)
         .bind(&post.date)
         .execute(&self.pool)
@@ -75,7 +73,7 @@ impl Db {
     /// 
     /// Returns [Option<Post>]
     pub async fn get_posts(&self, id: &str) -> Result<Option<Post>> {
-        let row = sqlx::query(
+        let row: Option<PostRow> = sqlx::query_as(
             "SELECT id, author, text, media, reactions, views, date 
             FROM posts WHERE id = ?"
         )
@@ -83,35 +81,7 @@ impl Db {
         .fetch_optional(&self.pool)
         .await?;
 
-        if let Some(row) = row {
-            let media_json: String = row.try_get(3)?;
-            let reactions_json: String = row.try_get(4)?;
-            
-            Ok(Some(Post {
-                id: row.try_get(0)?,
-                author: row.try_get(1)?,
-                text: row.try_get(2)?,
-                media: self.from_str_json(&media_json)?,
-                reactions: self.from_str_json(&reactions_json)?,
-                views: row.try_get(5)?,
-                date: row.try_get(6)?,
-            }))
-        } else {
-            return Ok(None);
-        }
-    }
-
-    fn to_str_json<T: serde::Serialize>(&self, value: &Option<Vec<T>>) -> Result<String> 
-    {
-        let empty_vec = Vec::new();
-        Ok(serde_json::to_string(value.as_ref().unwrap_or(&empty_vec))?)
-    }
-
-    fn from_str_json<T>(&self, json_str: &str) -> Result<Option<Vec<T>>> 
-    where 
-        T: for<'de> serde::Deserialize<'de>
-    {
-        Ok(serde_json::from_str(json_str).unwrap_or_default())
+        Ok(row.map(Into::into))
     }
 }
 
