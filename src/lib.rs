@@ -152,7 +152,7 @@ impl App {
         &self,
         url: &str,
         channel: &Channel,
-        new_posts: &Vec<Post>,
+        new_posts: &[Post],
     ) -> Result<reqwest::Response> {
         let payload = WebhookPayload { channel, new_posts };
 
@@ -178,7 +178,7 @@ impl App {
         &self,
         url: &str,
         channel: &Channel,
-        new_posts: &Vec<Post>,
+        new_posts: &[Post],
         max_retries: u64,
     ) -> Result<reqwest::Response> {
         for att in 1..=max_retries {
