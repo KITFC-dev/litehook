@@ -58,6 +58,39 @@ impl App {
         })
     }
 
+    async fn create_client(proxy_url: &Option<String>) -> Result<reqwest::Client> {
+        // Fetch SOCKS5 proxy list, and create proxy config
+        let proxy = if let Some(url) = proxy_url {
+            tracing::info!("configuring proxy");
+            let res = reqwest::Client::new().get(url).send().await?.text().await?;
+            let proxy_addr = res
+                .lines()
+                .next()
+                .map(|s| s.trim())
+                .ok_or(anyhow!("failed to fetch proxy"))?;
+            Some(reqwest::Proxy::all(format!("socks5h://{}", proxy_addr))?)
+        } else {
+            None
+        };
+
+        // Create client
+        let mut builder = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ));
+
+        if let Some(proxy) = proxy {
+            builder = builder.proxy(proxy);
+        }
+
+        let client = builder.build()?;
+
+        Ok(client)
+    }
+
     /// Start listening to channels.
     pub async fn run(self: Arc<Self>) -> Result<()> {
         tracing::info!(
@@ -142,39 +175,6 @@ impl App {
         }
 
         Ok(())
-    }
-
-    async fn create_client(proxy_url: &Option<String>) -> Result<reqwest::Client> {
-        // Fetch SOCKS5 proxy list, and create proxy config
-        let proxy = if let Some(url) = proxy_url {
-            tracing::info!("configuring proxy");
-            let res = reqwest::Client::new().get(url).send().await?.text().await?;
-            let proxy_addr = res
-                .lines()
-                .next()
-                .map(|s| s.trim())
-                .ok_or(anyhow!("failed to fetch proxy"))?;
-            Some(reqwest::Proxy::all(format!("socks5h://{}", proxy_addr))?)
-        } else {
-            None
-        };
-
-        // Create client
-        let mut builder = reqwest::Client::builder()
-            .timeout(Duration::from_secs(10))
-            .user_agent(format!(
-                "{}/{}",
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_PKG_VERSION")
-            ));
-
-        if let Some(proxy) = proxy {
-            builder = builder.proxy(proxy);
-        }
-
-        let client = builder.build()?;
-
-        Ok(client)
     }
 
     async fn send_webhook(
