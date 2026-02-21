@@ -95,7 +95,7 @@ impl App {
     pub async fn run(self: Arc<Self>) -> Result<()> {
         tracing::info!(
             "started listening to {} channels",
-            &self.cfg.channel_urls.len()
+            &self.cfg.channels.len()
         );
         let local = tokio::task::LocalSet::new();
 
@@ -103,7 +103,7 @@ impl App {
             .run_until(async move {
                 let mut handles = Vec::new();
 
-                for url in &self.cfg.channel_urls {
+                for url in &self.cfg.channels {
                     let app = Arc::clone(&self);
                     let url = url.clone();
                     let handle =

@@ -47,7 +47,7 @@ Environment variables used by litehook, for example in your `.env` file.
 | Environment Variable | Description |
 | --- | --- |
 | POLL_INTERVAL | Poll interval in seconds |
-| CHANNEL_URLS | Telegram channel IDs or URLs to monitor, separated by "," without spaces (e.g. `channel_id` or <https://t.me/s/channel_id>) |
+| CHANNELS | Telegram channel IDs or URLs to monitor, separated by "," without spaces (e.g. `channel_id` or <https://t.me/s/channel_id>) |
 | WEBHOOK_URL | URL to API endpoint that will receive the webhook |
 | WEBHOOK_SECRET | Webhook secret in header |
 | PROXY_LIST_URL | URL to SOCKS5 proxy list, you can try using [IPLocate proxy list](https://github.com/iplocate/free-proxy-list). But be aware that proxy can be slow and timeout. |
