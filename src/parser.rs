@@ -206,7 +206,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
 ///
 /// Parses the channel information, all visible posts on page (no scrolling),
 ///
-/// Returns [TmePage]
+/// Returns [TmePage] or None if page is invalid
 pub async fn parse_page(html: &str) -> Result<Option<TmePage>> {
     let cnl_sel = Selector::parse("div.tgme_channel_info").unwrap();
     let post_sel = Selector::parse("div.tgme_widget_message_wrap").unwrap();
@@ -221,10 +221,7 @@ pub async fn parse_page(html: &str) -> Result<Option<TmePage>> {
         .transpose()?
     {
         Some(c) => c,
-        None => {
-            tracing::warn!("could not parse channel");
-            return Ok(None);
-        }
+        None => return Ok(None),
     };
 
     for post in document.select(&post_sel) {

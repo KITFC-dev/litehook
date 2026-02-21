@@ -98,7 +98,10 @@ impl App {
                 }
 
                 res = self.poll_cycle(url) => {
-                    res?
+                    if let Err(e) = res {
+                        tracing::error!("poll failed: {e}");
+                        return Err(e);
+                    }
                 }
             }
         }
@@ -106,14 +109,8 @@ impl App {
 
     /// Poll URL with wait
     async fn poll_cycle(&self, url: &str) -> Result<()> {
-        let res = self.poll(url).await;
-        if let Err(e) = res {
-            tracing::error!("poll failed: {e}");
-            return Err(e);
-        }
-
+        self.poll(url).await?;
         sleep(Duration::from_secs(self.cfg.poll_interval)).await;
-
         Ok(())
     }
 
