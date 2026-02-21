@@ -172,12 +172,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
         .select(&media_sel)
         .filter_map(|el| parse_media(el).ok().flatten())
         .collect();
-
-    let media = if media_vec.is_empty() {
-        None
-    } else {
-        Some(media_vec)
-    };
+    let media = (!media_vec.is_empty()).then_some(media_vec);
 
     let reactions = post
         .select_first(&reactions_sel)

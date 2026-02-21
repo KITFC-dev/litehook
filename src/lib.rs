@@ -42,14 +42,7 @@ impl App {
         tracing::info!("initializing");
         fs::create_dir_all(Path::new("data"))?;
         let db = Db::new("data/litehook.db").await?;
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(10))
-            .user_agent(format!(
-                "{}/{}",
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_PKG_VERSION")
-            ))
-            .build()?;
+        let client = Self::create_client(&cfg.proxy_list_url).await?;
 
         Ok(Self {
             shutdown: CancellationToken::new(),
@@ -143,6 +136,38 @@ impl App {
         }
 
         Ok(())
+    }
+
+    async fn create_client(url: &Option<String>) -> Result<reqwest::Client> {
+        // Fetch SOCKS5 proxy list, and create proxy config
+        let proxy = if let Some(url) = url {
+            let res = reqwest::Client::new().get(url).send().await?.text().await?;
+            let proxy_addr = res
+                .lines()
+                .next()
+                .map(|s| s.trim())
+                .ok_or(anyhow!("failed to fetch proxy"))?;
+            Some(reqwest::Proxy::all(format!("socks5h://{}", proxy_addr))?)
+        } else {
+            None
+        };
+
+        // Create client
+        let mut builder = reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ));
+
+        if let Some(proxy) = proxy {
+            builder = builder.proxy(proxy);
+        }
+
+        let client = builder.build()?;
+
+        Ok(client)
     }
 
     async fn send_webhook(

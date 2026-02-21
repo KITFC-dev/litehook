@@ -9,6 +9,7 @@ pub struct Config {
 
     #[serde(deserialize_with = "deserialize_channels")]
     pub channel_urls: Vec<String>,
+    pub proxy_list_url: Option<String>,
     pub webhook_url: String,
     pub webhook_secret: Option<String>,
 }
