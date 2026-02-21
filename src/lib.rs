@@ -45,6 +45,7 @@ impl App {
             fs::OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open("data/litehook.db")?;
         }
         let db = Db::new("data/litehook.db").await?;
@@ -93,10 +94,7 @@ impl App {
 
     /// Start listening to channels.
     pub async fn run(self: Arc<Self>) -> Result<()> {
-        tracing::info!(
-            "started listening to {} channels",
-            &self.cfg.channels.len()
-        );
+        tracing::info!("started listening to {} channels", &self.cfg.channels.len());
         let local = tokio::task::LocalSet::new();
 
         local
