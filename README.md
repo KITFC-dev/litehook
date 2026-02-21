@@ -1,6 +1,6 @@
 # litehook
 
-Fetch public telegram channel and send a webhook on new posts. Litehook will fetch the channel page every `POLL_INTERVAL` seconds and send a webhook to `WEBHOOK_URL` if there are new posts. Posts are stored in a SQLite database in `data/litehook.db`.
+Fetch public telegram channel and send a webhook on new posts. Litehook will fetch the channel page every `POLL_INTERVAL` seconds and send a webhook to `WEBHOOK_URL` if there are new posts. Posts are stored in a SQLite database in `data/litehook.db`. Also has support for SOCKS5 proxy.
 
 ## Installation
 
@@ -50,6 +50,7 @@ Environment variables used by litehook, for example in your `.env` file.
 | CHANNEL_URLS | Telegram channel IDs or URLs to monitor, separated by "," without spaces (e.g. `channel_id` or <https://t.me/s/channel_id>) |
 | WEBHOOK_URL | URL to API endpoint that will receive the webhook |
 | WEBHOOK_SECRET | Webhook secret in header |
+| PROXY_LIST_URL | URL to SOCKS5 proxy list, you can try using [IPLocate proxy list](https://github.com/iplocate/free-proxy-list) |
 
 > [!TIP]
 > Set `POLL_INTERVAL` to something reasonable if you don't want to get rate limited by telegram, for example if the channel is posting rarely set to something like 300-600 seconds, otherwise set to a lower value.
