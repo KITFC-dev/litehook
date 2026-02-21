@@ -41,6 +41,12 @@ impl App {
     pub async fn new(cfg: Config) -> Result<Self> {
         tracing::info!("initializing");
         fs::create_dir_all(Path::new("data"))?;
+        if !Path::new("data/litehook.db").exists() {
+            fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open("data/litehook.db")?;
+        }
         let db = Db::new("data/litehook.db").await?;
         let client = Self::create_client(&cfg.proxy_list_url).await?;
 
@@ -138,9 +144,10 @@ impl App {
         Ok(())
     }
 
-    async fn create_client(url: &Option<String>) -> Result<reqwest::Client> {
+    async fn create_client(proxy_url: &Option<String>) -> Result<reqwest::Client> {
         // Fetch SOCKS5 proxy list, and create proxy config
-        let proxy = if let Some(url) = url {
+        let proxy = if let Some(url) = proxy_url {
+            tracing::info!("configuring proxy");
             let res = reqwest::Client::new().get(url).send().await?.text().await?;
             let proxy_addr = res
                 .lines()
