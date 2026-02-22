@@ -7,6 +7,9 @@ pub struct Config {
     #[serde(default = "default_interval")]
     pub poll_interval: u64,
 
+    #[serde(default = "default_db_path")]
+    pub db_path: String,
+
     #[serde(deserialize_with = "deserialize_channels")]
     pub channels: Vec<String>,
     pub proxy_list_url: Option<String>,
@@ -24,6 +27,10 @@ impl Config {
 
 fn default_interval() -> u64 {
     600
+}
+
+fn default_db_path() -> String {
+    "data/litehook.db".to_string()
 }
 
 fn deserialize_channels<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>

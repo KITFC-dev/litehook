@@ -4,8 +4,7 @@
 //! when new posts are detected. State is stored in SQLite database.
 
 use anyhow::{Ok, Result, anyhow};
-use std::fs;
-use std::path::Path;
+
 use std::sync::Arc;
 use tokio::select;
 use tokio::time::{Duration, sleep};
@@ -40,15 +39,7 @@ impl App {
     /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
     pub async fn new(cfg: Config) -> Result<Self> {
         tracing::info!("initializing");
-        fs::create_dir_all(Path::new("data"))?;
-        if !Path::new("data/litehook.db").exists() {
-            fs::OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open("data/litehook.db")?;
-        }
-        let db = Db::new("data/litehook.db").await?;
+        let db = Db::new(&cfg.db_path).await?;
         let client = Self::create_client(&cfg.proxy_list_url).await?;
 
         Ok(Self {

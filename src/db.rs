@@ -2,6 +2,8 @@ use anyhow::Result;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::types::Json;
+use tokio::fs;
+use std::path::Path;
 
 use crate::model::{Post, PostRow};
 
@@ -16,6 +18,18 @@ impl Db {
     ///
     /// Creates tables if they don't exist.
     pub async fn new(path: &str) -> Result<Self> {
+        // Ensure path exists
+        let path_ = Path::new(path);
+        if let Some(parent) = path_.parent() {
+            fs::create_dir_all(parent).await?;
+        }
+        fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(path_)
+            .await?;
+
         // Configure connection pool
         let (url, conns) = if path == "memory" {
             (":memory:".to_string(), 1)
