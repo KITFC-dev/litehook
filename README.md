@@ -1,6 +1,10 @@
 # litehook
 
-Fetch public telegram channel and send a webhook on new posts. Litehook will fetch the channel page every `POLL_INTERVAL` seconds and send a webhook to `WEBHOOK_URL` if there are new posts. Posts are stored in a SQLite database in `data/litehook.db`. Also has support for SOCKS5 proxy.
+![Litehook Thumbnail](https://10ku.net/litehook/thumbnail.png)
+
+Litehook is a lightweight tool that monitors public Telegram channels and sends a webhook on new posts built with Rust.
+
+It polls the channel page every `POLL_INTERVAL` seconds and send a `POST` request to `WEBHOOK_URL` if there are new posts. Also has support for SOCKS5 proxy.
 
 ## Installation
 
