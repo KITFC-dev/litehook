@@ -2,8 +2,8 @@ use anyhow::Result;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::types::Json;
-use tokio::fs;
 use std::path::Path;
+use tokio::fs;
 
 use crate::model::{Post, PostRow};
 
