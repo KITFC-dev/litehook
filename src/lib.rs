@@ -3,7 +3,8 @@
 //! Polls a public Telegram channel page and sends webhook notifications
 //! when new posts are detected. State is stored in SQLite database.
 
-use anyhow::{Ok, Result, anyhow};
+use anyhow::{Result, anyhow};
+use tokio::task::JoinSet;
 
 use std::sync::Arc;
 use tokio::select;
@@ -90,18 +91,21 @@ impl App {
 
         local
             .run_until(async move {
-                let mut handles = Vec::new();
+                let mut set = JoinSet::new();
 
                 for url in &self.cfg.channels {
                     let app = Arc::clone(&self);
                     let url = url.clone();
-                    let handle =
-                        tokio::task::spawn_local(async move { app.listen_channel(&url).await });
-                    handles.push(handle);
+                    
+                    set.spawn_local(async move {
+                        app.listen_channel(&url).await
+                    });
                 }
 
-                for h in handles {
-                    let _ = h.await;
+                while let Some(_) = set.join_next().await {
+                    if set.is_empty() {
+                        tracing::warn!("all listeners have stopped");
+                    }
                 }
             })
             .await;
@@ -201,7 +205,7 @@ impl App {
     ) -> Result<reqwest::Response> {
         for att in 1..=max_retries {
             match self.send_webhook(url, channel, new_posts).await {
-                std::result::Result::Ok(res) => return Ok(res),
+                Ok(res) => return Ok(res),
                 Err(e) if att < max_retries => {
                     tracing::warn!("webhook failed ({}/{}): {}", att, max_retries, e);
                     sleep(Duration::from_secs(1)).await;
