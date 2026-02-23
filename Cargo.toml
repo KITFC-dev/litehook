@@ -1,6 +1,7 @@
 [package]
 name = "litehook"
-version = "0.11.0"
+description = "Lightweight Telegram channel monitoring tool that sends HTTP webhooks for new posts."
+version = "1.0.0"
 edition = "2024"
 
 [dependencies]
