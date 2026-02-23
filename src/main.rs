@@ -1,6 +1,5 @@
 use anyhow::{Ok, Result};
 use litehook::{App, config};
-use std::sync::Arc;
 use tracing_subscriber::fmt::time::ChronoLocal;
 
 #[tokio::main]
@@ -13,13 +12,12 @@ async fn main() -> Result<()> {
         .init();
 
     let cfg = config::Config::from_dotenv()?;
-    let app = Arc::new(App::new(cfg).await?);
+    let app = std::sync::Arc::new(App::new(cfg).await?);
 
     let shutdown_handle = tokio::spawn({
         let shutdown_token = app.shutdown.clone();
         async move {
-            tokio::signal::ctrl_c().await.unwrap();
-            tracing::info!("shutting down...");
+            handle_signal().await;
             shutdown_token.cancel();
         }
     });
@@ -33,4 +31,30 @@ async fn main() -> Result<()> {
 
     tracing::info!("bye!");
     Ok(())
+}
+
+pub async fn handle_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
+        let mut sigint =
+            signal(SignalKind::interrupt()).expect("Failed to install SIGINT handler");
+
+        tokio::select! {
+            _ = sigterm.recv() => {},
+            _ = sigint.recv() => {},
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    }
+
+    tracing::info!("received shutdown signal");
 }
