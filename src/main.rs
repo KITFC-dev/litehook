@@ -36,12 +36,11 @@ async fn main() -> Result<()> {
 pub async fn handle_signal() {
     #[cfg(unix)]
     {
-        use tokio::signal::unix::{signal, SignalKind};
+        use tokio::signal::unix::{SignalKind, signal};
 
         let mut sigterm =
             signal(SignalKind::terminate()).expect("Failed to install SIGTERM handler");
-        let mut sigint =
-            signal(SignalKind::interrupt()).expect("Failed to install SIGINT handler");
+        let mut sigint = signal(SignalKind::interrupt()).expect("Failed to install SIGINT handler");
 
         tokio::select! {
             _ = sigterm.recv() => {},

@@ -96,13 +96,11 @@ impl App {
                 for url in &self.cfg.channels {
                     let app = Arc::clone(&self);
                     let url = url.clone();
-                    
-                    set.spawn_local(async move {
-                        app.listen_channel(&url).await
-                    });
+
+                    set.spawn_local(async move { app.listen_channel(&url).await });
                 }
 
-                while let Some(_) = set.join_next().await {
+                while set.join_next().await.is_some() {
                     if set.is_empty() {
                         tracing::warn!("all listeners have stopped");
                     }
