@@ -2,7 +2,7 @@
 
 ![Litehook Thumbnail](https://10ku.net/litehook/thumbnail.png)
 
-Litehook is a lightweight tool that monitors public Telegram channels and sends a webhook on new posts built with Rust.
+Litehook is an async and lightweight tool that can monitor multiple public Telegram channels and sends a webhook on new posts.
 
 It polls the channel page every `POLL_INTERVAL` seconds and send a `POST` request to `WEBHOOK_URL` if there are new posts. Also has support for SOCKS5 proxy.
 
