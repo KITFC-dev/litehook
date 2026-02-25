@@ -17,7 +17,7 @@ pub struct Config {
     pub webhook_secret: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ListenerConfig {
     #[serde(default = "default_interval")]
     pub poll_interval: u64,

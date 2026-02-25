@@ -1,14 +1,15 @@
-use tokio_util::sync::CancellationToken;
-use tokio::time::{Duration, sleep};
 use anyhow::anyhow;
-use reqwest::Client;
 use rand::prelude::IndexedRandom;
+use reqwest::Client;
+use tokio::time::{Duration, sleep};
+use tokio_util::sync::CancellationToken;
 
 use crate::config::ListenerConfig;
-use crate::model::{Channel, Post, WebhookPayload};
 use crate::db::Db;
+use crate::model::{Channel, Post, WebhookPayload};
 use crate::parser;
 
+#[derive(Clone)]
 pub struct Listener {
     cfg: ListenerConfig,
     db: Db,
@@ -17,9 +18,13 @@ pub struct Listener {
 }
 
 impl Listener {
-    pub async fn new(cfg: ListenerConfig, db: Db) -> anyhow::Result<Self> {
-        tracing::info!("initializing listener");
-        let client = Self::create_client(&cfg.proxy_list_url).await?;
+    pub async fn new(
+        cfg: ListenerConfig,
+        db: Db,
+        client_builder: reqwest::ClientBuilder,
+    ) -> anyhow::Result<Self> {
+        tracing::info!("initializing listener for {}", cfg.channel_url);
+        let client = Self::configure_proxy(client_builder, &cfg.proxy_list_url).await?;
         Ok(Self {
             cfg,
             db,
@@ -32,22 +37,18 @@ impl Listener {
         loop {
             tokio::select! {
                 _ = self.shutdown.cancelled() => {
-                    tracing::info!("stopped listening to {:?}", &self.cfg.channel_url);
+                    self.stop().await?;
                     return Ok(());
                 }
 
-                res = self.poll_cycle(&self.cfg.channel_url) => {
-                    if let Err(e) = res {
-                        tracing::error!("poll failed: {e}");
-                        return Err(e);
-                    }
-                }
+                res = self.poll_cycle(&self.cfg.channel_url) => { res? }
             }
         }
     }
 
     /// Poll URL with wait
     async fn poll_cycle(&self, url: &str) -> anyhow::Result<()> {
+        tracing::info!("polling {}", url);
         self.poll(url).await?;
         sleep(Duration::from_secs(self.cfg.poll_interval)).await;
         Ok(())
@@ -85,20 +86,16 @@ impl Listener {
     }
 
     pub async fn stop(&self) -> anyhow::Result<()> {
+        tracing::info!("stopping listening to {}", &self.cfg.channel_url);
         self.shutdown.cancel();
         Ok(())
     }
 
     /// Create web client
-    async fn create_client(proxy_list_url: &Option<String>) -> anyhow::Result<reqwest::Client> {
-        let mut builder = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .user_agent(format!(
-                "{}/{}",
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_PKG_VERSION")
-            ));
-
+    async fn configure_proxy(
+        mut builder: reqwest::ClientBuilder,
+        proxy_list_url: &Option<String>,
+    ) -> anyhow::Result<reqwest::Client> {
         if let Some(url) = proxy_list_url {
             tracing::info!("configuring proxy");
             let addr = get_proxy(url).await?;
@@ -163,13 +160,20 @@ impl Listener {
 
 /// Fetch SOCKS5 proxy list, and create proxy config
 async fn get_proxy(proxy_list_url: &str) -> anyhow::Result<String> {
-    let res = reqwest::Client::new().get(proxy_list_url).send().await?.text().await?;
+    let res = reqwest::Client::new()
+        .get(proxy_list_url)
+        .send()
+        .await?
+        .text()
+        .await?;
     let mut rng = rand::rng();
     let proxy_addr: Vec<&str> = res
         .lines()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .collect();
-    let proxy_addr = proxy_addr.choose(&mut rng).ok_or_else(|| anyhow!("failed to fetch proxy"))?;
+    let proxy_addr = proxy_addr
+        .choose(&mut rng)
+        .ok_or_else(|| anyhow!("failed to fetch proxy"))?;
     Ok(proxy_addr.to_string())
 }
