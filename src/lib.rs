@@ -7,7 +7,6 @@ use anyhow::{Result, anyhow};
 use tokio::task::JoinSet;
 
 use std::sync::Arc;
-use tokio::select;
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
@@ -17,6 +16,7 @@ use db::Db;
 
 pub mod config;
 mod db;
+mod listener;
 mod model;
 mod parser;
 
@@ -84,7 +84,7 @@ impl App {
         Ok(client)
     }
 
-    /// Start listening to channels.
+    /// Run [App]
     pub async fn run(self: Arc<Self>) -> Result<()> {
         tracing::info!("started listening to {} channels", &self.cfg.channels.len());
         let local = tokio::task::LocalSet::new();
@@ -114,7 +114,7 @@ impl App {
     /// Poll loop, handles shutdown signal
     async fn listen_channel(&self, url: &str) -> Result<()> {
         loop {
-            select! {
+            tokio::select! {
                 _ = self.shutdown.cancelled() => {
                     tracing::info!("stopped listening to {}", url);
                     return Ok(());
