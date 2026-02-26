@@ -19,6 +19,8 @@ pub struct Config {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ListenerConfig {
+    pub id: String,
+
     #[serde(default = "default_interval")]
     pub poll_interval: u64,
     pub channel_url: String,

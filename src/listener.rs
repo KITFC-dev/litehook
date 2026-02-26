@@ -11,7 +11,8 @@ use crate::parser;
 
 #[derive(Clone)]
 pub struct Listener {
-    cfg: ListenerConfig,
+    pub cfg: ListenerConfig,
+
     db: Db,
     client: Client,
     shutdown: CancellationToken,

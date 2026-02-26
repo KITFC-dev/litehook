@@ -5,7 +5,6 @@
 
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-use tokio::task::JoinSet;
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
@@ -48,78 +47,82 @@ impl App {
         })
     }
 
-    /// Run [App], spawns listeners and starts listening to configuration changes.
+    /// Run [App], spawns listeners and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
-        tracing::info!("started listening to {} channels", &self.cfg.channels.len());
+        tracing::info!("adding {} listeners", &self.cfg.channels.len());
+        // Local set is needed because scraper is !Send
         let local = tokio::task::LocalSet::new();
 
         local
-            .run_until(async move {
-                let mut set = JoinSet::new();
-
+            .run_until(async {
                 for url in &self.cfg.channels {
-                    let app = Arc::clone(&self);
-                    let url = url.clone();
-                    let client_builder = reqwest::Client::builder()
-                        .timeout(Duration::from_secs(30))
-                        .user_agent(format!(
-                            "{}/{}",
-                            env!("CARGO_PKG_NAME"),
-                            env!("CARGO_PKG_VERSION")
-                        ));
-
-                    let listener = match listener::Listener::new(
-                        // Using app's config for testing
-                        ListenerConfig {
-                            poll_interval: app.cfg.poll_interval,
-                            channel_url: url.clone(),
-                            proxy_list_url: app.cfg.proxy_list_url.clone(),
-                            webhook_url: app.cfg.webhook_url.clone(),
-                            webhook_secret: app.cfg.webhook_secret.clone(),
-                        },
-                        app.db.clone(),
-                        client_builder,
-                    )
-                    .await
-                    {
-                        Ok(listener) => Arc::new(listener),
-                        Err(e) => {
-                            tracing::error!("failed to create listener for {}: {e}", url);
-                            continue;
-                        }
+                    let test_cfg = ListenerConfig {
+                        id: url.clone(),
+                        poll_interval: self.cfg.poll_interval,
+                        channel_url: url.clone(),
+                        proxy_list_url: self.cfg.proxy_list_url.clone(),
+                        webhook_url: self.cfg.webhook_url.clone(),
+                        webhook_secret: self.cfg.webhook_secret.clone(),
                     };
-
-                    self.listeners
-                        .lock()
-                        .await
-                        .insert(url.clone(), Arc::clone(&listener));
-
-                    set.spawn_local(async move { listener.run().await });
+                    self.add_listener(test_cfg).await;
                 }
 
                 tokio::select! {
                     _ = self.shutdown.cancelled() => {
-                        tracing::info!("shutting down all listeners");
-                        for (url, listener) in self.listeners.lock().await.clone() {
-                            if let Err(e) = listener.stop().await {
-                                tracing::error!("failed to stop listener for {}: {e}", url);
-                            }
-                        }
-                    }
-                    _ = async {
-                        while let Some(res) = set.join_next().await {
-                            match res {
-                                Ok(Err(e)) => tracing::error!("listener error: {e}"),
-                                Err(e) => tracing::error!("listener panicked: {e}"),
-                                Ok(Ok(())) => {}
-                            }
-                        }
-                    } => {
-                        tracing::warn!("all listeners have stopped");
+                        self.stop().await
                     }
                 }
             })
             .await;
+
         Ok(())
+    }
+
+    async fn add_listener(&self, cfg: ListenerConfig) {
+        tracing::info!("adding listener for channel {}", cfg.channel_url);
+        let client_builder = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ));
+
+        let id = cfg.id.clone();
+        let listener = match listener::Listener::new(cfg, self.db.clone(), client_builder).await {
+            Ok(listener) => Arc::new(listener),
+            Err(e) => {
+                tracing::error!("failed to create listener: {e}");
+                return;
+            }
+        };
+
+        self.listeners
+            .lock()
+            .await
+            .insert(id, Arc::clone(&listener));
+
+        tokio::task::spawn_local(async move { listener.run().await });
+    }
+
+    #[allow(unused)]
+    async fn remove_listener(&self, url: &str) {
+        unimplemented!()
+    }
+
+    #[allow(unused)]
+    async fn update_listener(&self, url: &str, cfg: ListenerConfig) {
+        self.remove_listener(url).await;
+        self.add_listener(cfg).await;
+    }
+
+    async fn stop(&self) {
+        tracing::info!("stopping all listeners");
+        let mut listeners = self.listeners.lock().await;
+        for (_, listener) in listeners.drain() {
+            if let Err(e) = listener.stop().await {
+                tracing::error!("failed to stop listener: {e}");
+            }
+        }
     }
 }
