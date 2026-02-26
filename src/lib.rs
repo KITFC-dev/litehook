@@ -10,6 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 use config::{Config, ListenerConfig};
 use db::Db;
+use listener::Listener;
 
 pub mod config;
 mod db;
@@ -25,7 +26,7 @@ pub struct App {
     /// Tokio Cancellation token for shutdown signal
     pub shutdown: CancellationToken,
 
-    listeners: Mutex<HashMap<String, Arc<listener::Listener>>>,
+    listeners: Mutex<HashMap<String, Arc<Listener>>>,
     cfg: Config,
     db: Db,
 }
@@ -47,7 +48,7 @@ impl App {
         })
     }
 
-    /// Run [App], spawns listeners and handles shutdown signal.
+    /// Run [App], spawns listener local tasks and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
         tracing::info!("adding {} listeners", &self.cfg.channels.len());
         // Local set is needed because scraper is !Send
@@ -78,6 +79,7 @@ impl App {
         Ok(())
     }
 
+    /// Stop all [Listener]s and shutdown the server.
     pub async fn stop(&self) {
         tracing::info!("stopping all listeners");
         let mut listeners = self.listeners.lock().await;
@@ -88,6 +90,7 @@ impl App {
         }
     }
 
+    /// Add a new [Listener] to the server.
     pub async fn add_listener(&self, cfg: ListenerConfig) {
         tracing::info!("adding listener for channel {}", cfg.channel_url);
         let client_builder = reqwest::Client::builder()
@@ -99,7 +102,7 @@ impl App {
             ));
 
         let id = cfg.id.clone();
-        let listener = match listener::Listener::new(cfg, self.db.clone(), client_builder).await {
+        let listener = match Listener::new(cfg, self.db.clone(), client_builder).await {
             Ok(listener) => Arc::new(listener),
             Err(e) => {
                 tracing::error!("failed to create listener: {e}");
@@ -115,6 +118,7 @@ impl App {
         tokio::task::spawn_local(async move { listener.run().await });
     }
 
+    /// Remove a [Listener] from the server.
     pub async fn remove_listener(&self, url: &str) {
         let mut listeners = self.listeners.lock().await;
         if let Some(listener) = listeners.remove(url) {
@@ -126,6 +130,10 @@ impl App {
         }
     }
 
+    /// Update a [Listener]
+    /// 
+    /// Works by removing the old listener and adding a new one
+    /// with the updated configuration. Maybe can be improved in the future.
     #[allow(unused)]
     pub async fn update_listener(&self, cfg: ListenerConfig) {
         self.remove_listener(&cfg.id).await;
