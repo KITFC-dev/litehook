@@ -4,7 +4,7 @@
 //! when new posts are detected. State is stored in SQLite database.
 
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc};
 use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
@@ -29,6 +29,15 @@ pub struct App {
     listeners: Mutex<HashMap<String, Arc<Listener>>>,
     cfg: Config,
     db: Db,
+
+    cmd_tx: mpsc::Sender<ListenerCmd>,
+    cmd_rx: Mutex<mpsc::Receiver<ListenerCmd>>,
+}
+
+/// Commands for the [App] to manage listeners
+pub enum ListenerCmd {
+    Add(ListenerConfig),
+    Remove(String),
 }
 
 impl App {
@@ -38,6 +47,7 @@ impl App {
     /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
     pub async fn new(cfg: Config) -> anyhow::Result<Self> {
         tracing::info!("initializing");
+        let (cmd_tx, cmd_rx) = mpsc::channel(100);
         let db = Db::new(&cfg.db_path).await?;
 
         Ok(Self {
@@ -45,10 +55,15 @@ impl App {
             listeners: Mutex::new(HashMap::new()),
             cfg,
             db,
+            cmd_tx,
+            cmd_rx: Mutex::new(cmd_rx),
         })
     }
 
-    /// Run [App], spawns listener local tasks and handles shutdown signal.
+    /// Run [App]
+    /// 
+    /// Spawns listener local tasks listens to mpsc commands 
+    /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
         tracing::info!("adding {} listeners", &self.cfg.channels.len());
         // Local set is needed because scraper is !Send
@@ -67,10 +82,21 @@ impl App {
                     };
                     self.add_listener(test_cfg).await;
                 }
-
-                tokio::select! {
-                    _ = self.shutdown.cancelled() => {
-                        self.stop().await
+                
+                let mut cmd_rx = self.cmd_rx.lock().await;
+                loop {
+                    tokio::select! {
+                        _ = self.shutdown.cancelled() => {
+                            self.stop_all().await;
+                            break;
+                        }
+                        cmd = cmd_rx.recv() => {
+                            match cmd {
+                                Some(ListenerCmd::Add(cfg)) => self._add_listener(cfg).await,
+                                Some(ListenerCmd::Remove(id)) => self._remove_listener(&id).await,
+                                None => break, // Channel closed
+                            }
+                        }
                     }
                 }
             })
@@ -79,8 +105,8 @@ impl App {
         Ok(())
     }
 
-    /// Stop all [Listener]s and shutdown the server.
-    pub async fn stop(&self) {
+    /// Stop all [Listener]s and clear the listeners hashmap.
+    async fn stop_all(&self) {
         tracing::info!("stopping all listeners");
         let mut listeners = self.listeners.lock().await;
         for (_, listener) in listeners.drain() {
@@ -92,6 +118,25 @@ impl App {
 
     /// Add a new [Listener] to the server.
     pub async fn add_listener(&self, cfg: ListenerConfig) {
+        self.cmd_tx.send(ListenerCmd::Add(cfg)).await.unwrap();
+    }
+
+    /// Remove a [Listener] from the server.
+    pub async fn remove_listener(&self, id: &str) {
+        self.cmd_tx.send(ListenerCmd::Remove(id.to_string())).await.unwrap();
+    }
+
+    /// Update a [Listener]
+    /// 
+    /// Works by removing the old listener and adding a new one
+    /// with the updated configuration. Maybe can be improved in the future.
+    #[allow(unused)]
+    async fn update_listener(&self, cfg: ListenerConfig) {
+        self.remove_listener(&cfg.id).await;
+        self.add_listener(cfg).await;
+    }
+
+    async fn _add_listener(&self, cfg: ListenerConfig) {
         tracing::info!("adding listener for channel {}", cfg.channel_url);
         let client_builder = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
@@ -118,25 +163,14 @@ impl App {
         tokio::task::spawn_local(async move { listener.run().await });
     }
 
-    /// Remove a [Listener] from the server.
-    pub async fn remove_listener(&self, url: &str) {
+    async fn _remove_listener(&self, id: &str) {
         let mut listeners = self.listeners.lock().await;
-        if let Some(listener) = listeners.remove(url) {
+        if let Some(listener) = listeners.remove(id) {
             if let Err(e) = listener.stop().await {
                 tracing::error!("failed to stop listener: {e}");
             }
         } else {
-            tracing::warn!("listener not found for channel {}", url);
+            tracing::warn!("listener not found for channel {}", id);
         }
-    }
-
-    /// Update a [Listener]
-    /// 
-    /// Works by removing the old listener and adding a new one
-    /// with the updated configuration. Maybe can be improved in the future.
-    #[allow(unused)]
-    pub async fn update_listener(&self, cfg: ListenerConfig) {
-        self.remove_listener(&cfg.id).await;
-        self.add_listener(cfg).await;
     }
 }
