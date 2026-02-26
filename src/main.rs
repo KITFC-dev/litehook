@@ -1,5 +1,5 @@
 use anyhow::{Ok, Result};
-use litehook::{App, config};
+use litehook::{Server, config};
 use tracing_subscriber::fmt::time::ChronoLocal;
 
 #[tokio::main]
@@ -12,19 +12,19 @@ async fn main() -> Result<()> {
         .init();
 
     let cfg = config::Config::from_dotenv()?;
-    let app = std::sync::Arc::new(App::new(cfg).await?);
+    let server = std::sync::Arc::new(Server::new(cfg).await?);
 
     let shutdown_handle = tokio::spawn({
-        let shutdown_token = app.shutdown.clone();
+        let shutdown_token = server.shutdown.clone();
         async move {
             handle_signal().await;
             shutdown_token.cancel();
         }
     });
 
-    let res = app.run().await;
+    let res = server.run().await;
     if let Err(e) = res {
-        tracing::error!("app failed: {e}");
+        tracing::error!("server failed: {e}");
     }
 
     shutdown_handle.await.unwrap();

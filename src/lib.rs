@@ -18,11 +18,11 @@ mod listener;
 mod model;
 mod parser;
 
-/// Core application state for the Litehook server.
+/// Core server state for the Litehook server.
 ///
 /// Holds configuration, database connection, HTTP client,
 /// and shutdown signal.
-pub struct App {
+pub struct Server {
     /// Tokio Cancellation token for shutdown signal
     pub shutdown: CancellationToken,
 
@@ -34,14 +34,14 @@ pub struct App {
     cmd_rx: Mutex<mpsc::Receiver<ListenerCmd>>,
 }
 
-/// Commands for the [App] to manage listeners
+/// Commands for the [Server] to manage listeners
 pub enum ListenerCmd {
     Add(ListenerConfig),
     Remove(String),
 }
 
-impl App {
-    /// Create a new instance of [App].
+impl Server {
+    /// Create a new instance of [Server].
     ///
     /// Creates SQLite database in data/litehook.db and creates data dir
     /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
@@ -60,9 +60,9 @@ impl App {
         })
     }
 
-    /// Run [App]
-    /// 
-    /// Spawns listener local tasks listens to mpsc commands 
+    /// Run [Server]
+    ///
+    /// Spawns listener local tasks listens to mpsc commands
     /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
         tracing::info!("adding {} listeners", &self.cfg.channels.len());
@@ -82,7 +82,7 @@ impl App {
                     };
                     self.add_listener(test_cfg).await;
                 }
-                
+
                 let mut cmd_rx = self.cmd_rx.lock().await;
                 loop {
                     tokio::select! {
@@ -123,11 +123,14 @@ impl App {
 
     /// Remove a [Listener] from the server.
     pub async fn remove_listener(&self, id: &str) {
-        self.cmd_tx.send(ListenerCmd::Remove(id.to_string())).await.unwrap();
+        self.cmd_tx
+            .send(ListenerCmd::Remove(id.to_string()))
+            .await
+            .unwrap();
     }
 
     /// Update a [Listener]
-    /// 
+    ///
     /// Works by removing the old listener and adding a new one
     /// with the updated configuration. Maybe can be improved in the future.
     #[allow(unused)]
@@ -137,7 +140,6 @@ impl App {
     }
 
     async fn _add_listener(&self, cfg: ListenerConfig) {
-        tracing::info!("adding listener for channel {}", cfg.channel_url);
         let client_builder = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
             .user_agent(format!(
