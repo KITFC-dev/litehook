@@ -17,6 +17,18 @@ pub struct Config {
     pub webhook_secret: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct ListenerConfig {
+    pub id: String,
+
+    #[serde(default = "default_interval")]
+    pub poll_interval: u64,
+    pub channel_url: String,
+    pub proxy_list_url: Option<String>,
+    pub webhook_url: String,
+    pub webhook_secret: Option<String>,
+}
+
 impl Config {
     /// Create a new instance of [Config] with environment variables
     pub fn from_dotenv() -> Result<Self> {

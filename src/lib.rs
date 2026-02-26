@@ -3,20 +3,17 @@
 //! Polls a public Telegram channel page and sends webhook notifications
 //! when new posts are detected. State is stored in SQLite database.
 
-use anyhow::{Result, anyhow};
-use tokio::task::JoinSet;
-
-use std::sync::Arc;
-use tokio::select;
-use tokio::time::{Duration, sleep};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
+use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-use crate::model::{Channel, Post, WebhookPayload};
-use config::Config;
+use config::{Config, ListenerConfig};
 use db::Db;
 
 pub mod config;
 mod db;
+mod listener;
 mod model;
 mod parser;
 
@@ -28,9 +25,9 @@ pub struct App {
     /// Tokio Cancellation token for shutdown signal
     pub shutdown: CancellationToken,
 
+    listeners: Mutex<HashMap<String, Arc<listener::Listener>>>,
     cfg: Config,
     db: Db,
-    client: reqwest::Client,
 }
 
 impl App {
@@ -38,71 +35,41 @@ impl App {
     ///
     /// Creates SQLite database in data/litehook.db and creates data dir
     /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
-    pub async fn new(cfg: Config) -> Result<Self> {
+    pub async fn new(cfg: Config) -> anyhow::Result<Self> {
         tracing::info!("initializing");
         let db = Db::new(&cfg.db_path).await?;
-        let client = Self::create_client(&cfg.proxy_list_url).await?;
 
         Ok(Self {
             shutdown: CancellationToken::new(),
+            listeners: Mutex::new(HashMap::new()),
             cfg,
             db,
-            client,
         })
     }
 
-    async fn create_client(proxy_url: &Option<String>) -> Result<reqwest::Client> {
-        // Fetch SOCKS5 proxy list, and create proxy config
-        let proxy = if let Some(url) = proxy_url {
-            tracing::info!("configuring proxy");
-            let res = reqwest::Client::new().get(url).send().await?.text().await?;
-            let proxy_addr = res
-                .lines()
-                .next()
-                .map(|s| s.trim())
-                .ok_or(anyhow!("failed to fetch proxy"))?;
-            Some(reqwest::Proxy::all(format!("socks5h://{}", proxy_addr))?)
-        } else {
-            None
-        };
-
-        // Create client
-        let mut builder = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .user_agent(format!(
-                "{}/{}",
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_PKG_VERSION")
-            ));
-
-        if let Some(proxy) = proxy {
-            builder = builder.proxy(proxy);
-        }
-
-        let client = builder.build()?;
-
-        Ok(client)
-    }
-
-    /// Start listening to channels.
-    pub async fn run(self: Arc<Self>) -> Result<()> {
-        tracing::info!("started listening to {} channels", &self.cfg.channels.len());
+    /// Run [App], spawns listeners and handles shutdown signal.
+    pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
+        tracing::info!("adding {} listeners", &self.cfg.channels.len());
+        // Local set is needed because scraper is !Send
         let local = tokio::task::LocalSet::new();
 
         local
-            .run_until(async move {
-                let mut set = JoinSet::new();
-
+            .run_until(async {
                 for url in &self.cfg.channels {
-                    let app = Arc::clone(&self);
-                    let url = url.clone();
-
-                    set.spawn_local(async move { app.listen_channel(&url).await });
+                    let test_cfg = ListenerConfig {
+                        id: url.clone(),
+                        poll_interval: self.cfg.poll_interval,
+                        channel_url: url.clone(),
+                        proxy_list_url: self.cfg.proxy_list_url.clone(),
+                        webhook_url: self.cfg.webhook_url.clone(),
+                        webhook_secret: self.cfg.webhook_secret.clone(),
+                    };
+                    self.add_listener(test_cfg).await;
                 }
 
-                while set.join_next().await.is_some() {
-                    if set.is_empty() {
-                        tracing::warn!("all listeners have stopped");
+                tokio::select! {
+                    _ = self.shutdown.cancelled() => {
+                        self.stop().await
                     }
                 }
             })
@@ -111,110 +78,51 @@ impl App {
         Ok(())
     }
 
-    /// Poll loop, handles shutdown signal
-    async fn listen_channel(&self, url: &str) -> Result<()> {
-        loop {
-            select! {
-                _ = self.shutdown.cancelled() => {
-                    tracing::info!("stopped listening to {}", url);
-                    return Ok(());
-                }
+    async fn add_listener(&self, cfg: ListenerConfig) {
+        tracing::info!("adding listener for channel {}", cfg.channel_url);
+        let client_builder = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ));
 
-                res = self.poll_cycle(url) => {
-                    if let Err(e) = res {
-                        tracing::error!("poll failed: {e}");
-                        return Err(e);
-                    }
-                }
+        let id = cfg.id.clone();
+        let listener = match listener::Listener::new(cfg, self.db.clone(), client_builder).await {
+            Ok(listener) => Arc::new(listener),
+            Err(e) => {
+                tracing::error!("failed to create listener: {e}");
+                return;
             }
-        }
-    }
-
-    /// Poll URL with wait
-    async fn poll_cycle(&self, url: &str) -> Result<()> {
-        self.poll(url).await?;
-        sleep(Duration::from_secs(self.cfg.poll_interval)).await;
-        Ok(())
-    }
-
-    /// Poll URL, parses the channel info and posts,
-    /// stores state in database, and sends webhook notifications.
-    async fn poll(&self, url: &str) -> Result<()> {
-        let html = parser::fetch_html(&self.client, url).await?;
-        let page = match parser::parse_page(&html).await? {
-            Some(p) => p,
-            None => return Err(anyhow!("invalid channel: {}", url)),
         };
-        let mut new_posts = Vec::new();
 
-        for post in &page.posts {
-            if self.db.get_posts(&post.id).await?.is_none() {
-                tracing::info!("new post: {}", post.id);
-                self.db.insert_post(post).await?;
-                new_posts.push(post.clone());
-            }
-        }
+        self.listeners
+            .lock()
+            .await
+            .insert(id, Arc::clone(&listener));
 
-        if !new_posts.is_empty() {
-            let res = self
-                .send_webhook_retry(&self.cfg.webhook_url, &page.channel, &new_posts, 5)
-                .await;
-
-            if let Err(e) = res {
-                tracing::error!("webhook failed: {e}");
-            }
-        }
-
-        Ok(())
+        tokio::task::spawn_local(async move { listener.run().await });
     }
 
-    async fn send_webhook(
-        &self,
-        url: &str,
-        channel: &Channel,
-        new_posts: &[Post],
-    ) -> Result<reqwest::Response> {
-        let payload = WebhookPayload { channel, new_posts };
-
-        let res = self
-            .client
-            .post(url)
-            .header(
-                "x-secret",
-                self.cfg.webhook_secret.clone().unwrap_or("".to_string()),
-            )
-            .json(&payload)
-            .send()
-            .await?;
-
-        if !res.status().is_success() {
-            return Err(anyhow!(res.status()));
-        }
-
-        Ok(res)
+    #[allow(unused)]
+    async fn remove_listener(&self, url: &str) {
+        unimplemented!()
     }
 
-    async fn send_webhook_retry(
-        &self,
-        url: &str,
-        channel: &Channel,
-        new_posts: &[Post],
-        max_retries: u64,
-    ) -> Result<reqwest::Response> {
-        for att in 1..=max_retries {
-            match self.send_webhook(url, channel, new_posts).await {
-                Ok(res) => return Ok(res),
-                Err(e) if att < max_retries => {
-                    tracing::warn!("webhook failed ({}/{}): {}", att, max_retries, e);
-                    sleep(Duration::from_secs(1)).await;
-                }
-                Err(e) => {
-                    tracing::error!("webhook failed after {} attempts: {}", max_retries, e);
-                    return Err(e);
-                }
+    #[allow(unused)]
+    async fn update_listener(&self, url: &str, cfg: ListenerConfig) {
+        self.remove_listener(url).await;
+        self.add_listener(cfg).await;
+    }
+
+    async fn stop(&self) {
+        tracing::info!("stopping all listeners");
+        let mut listeners = self.listeners.lock().await;
+        for (_, listener) in listeners.drain() {
+            if let Err(e) = listener.stop().await {
+                tracing::error!("failed to stop listener: {e}");
             }
         }
-
-        Err(anyhow!("webhook failed"))
     }
 }

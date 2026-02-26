@@ -8,6 +8,7 @@ use tokio::fs;
 use crate::model::{Post, PostRow};
 
 /// SQLite database
+#[derive(Clone)]
 pub struct Db {
     /// SQLite connection pool
     pub pool: SqlitePool,
