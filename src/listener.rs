@@ -47,6 +47,12 @@ impl Listener {
         }
     }
 
+    pub async fn stop(&self) -> anyhow::Result<()> {
+        tracing::info!("stopping listening to {}", &self.cfg.channel_url);
+        self.shutdown.cancel();
+        Ok(())
+    }
+
     /// Poll URL with wait
     async fn poll_cycle(&self, url: &str) -> anyhow::Result<()> {
         tracing::info!("polling {}", url);
@@ -83,12 +89,6 @@ impl Listener {
             }
         }
 
-        Ok(())
-    }
-
-    pub async fn stop(&self) -> anyhow::Result<()> {
-        tracing::info!("stopping listening to {}", &self.cfg.channel_url);
-        self.shutdown.cancel();
         Ok(())
     }
 

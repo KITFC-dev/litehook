@@ -78,7 +78,17 @@ impl App {
         Ok(())
     }
 
-    async fn add_listener(&self, cfg: ListenerConfig) {
+    pub async fn stop(&self) {
+        tracing::info!("stopping all listeners");
+        let mut listeners = self.listeners.lock().await;
+        for (_, listener) in listeners.drain() {
+            if let Err(e) = listener.stop().await {
+                tracing::error!("failed to stop listener: {e}");
+            }
+        }
+    }
+
+    pub async fn add_listener(&self, cfg: ListenerConfig) {
         tracing::info!("adding listener for channel {}", cfg.channel_url);
         let client_builder = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
@@ -105,24 +115,20 @@ impl App {
         tokio::task::spawn_local(async move { listener.run().await });
     }
 
-    #[allow(unused)]
-    async fn remove_listener(&self, url: &str) {
-        unimplemented!()
-    }
-
-    #[allow(unused)]
-    async fn update_listener(&self, url: &str, cfg: ListenerConfig) {
-        self.remove_listener(url).await;
-        self.add_listener(cfg).await;
-    }
-
-    async fn stop(&self) {
-        tracing::info!("stopping all listeners");
+    pub async fn remove_listener(&self, url: &str) {
         let mut listeners = self.listeners.lock().await;
-        for (_, listener) in listeners.drain() {
+        if let Some(listener) = listeners.remove(url) {
             if let Err(e) = listener.stop().await {
                 tracing::error!("failed to stop listener: {e}");
             }
+        } else {
+            tracing::warn!("listener not found for channel {}", url);
         }
+    }
+
+    #[allow(unused)]
+    pub async fn update_listener(&self, cfg: ListenerConfig) {
+        self.remove_listener(&cfg.id).await;
+        self.add_listener(cfg).await;
     }
 }
