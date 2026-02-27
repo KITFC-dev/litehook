@@ -2,8 +2,11 @@ use anyhow::Result;
 use serde::{Deserialize, Deserializer};
 
 /// Litehook server configuration
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
+    #[serde(default = "default_port")]
+    pub port: u16,
+
     #[serde(default = "default_interval")]
     pub poll_interval: u64,
 
@@ -35,6 +38,10 @@ impl Config {
         dotenvy::dotenv().ok();
         Ok(envy::from_env()?)
     }
+}
+
+fn default_port() -> u16 {
+    4101
 }
 
 fn default_interval() -> u64 {

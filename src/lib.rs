@@ -12,6 +12,7 @@ use db::Db;
 use listener::Listener;
 
 pub mod config;
+pub mod api;
 mod db;
 mod listener;
 mod model;
