@@ -57,14 +57,14 @@ impl Api {
     }
 }
 
-async fn get_all_listeners(
+pub async fn get_all_listeners(
     State(server): State<Arc<Server>>,
 ) -> (StatusCode, Json<Vec<ListenerResponse>>) {
     let listeners = server.get_all_listeners().await;
     (StatusCode::OK, Json(listeners))
 }
 
-async fn add_listener(
+pub async fn add_listener(
     State(server): State<Arc<Server>>,
     Json(body): Json<ListenerConfig>,
 ) -> StatusCode {
@@ -72,7 +72,7 @@ async fn add_listener(
     StatusCode::OK
 }
 
-async fn get_listener(
+pub async fn get_listener(
     State(server): State<Arc<Server>>,
     Path(id): Path<String>,
 ) -> (StatusCode, Json<Option<ListenerResponse>>) {
@@ -80,7 +80,7 @@ async fn get_listener(
     (StatusCode::OK, Json(listener))
 }
 
-async fn update_listener(
+pub async fn update_listener(
     State(server): State<Arc<Server>>,
     Json(body): Json<ListenerConfig>,
 ) -> StatusCode {
@@ -88,7 +88,7 @@ async fn update_listener(
     StatusCode::OK
 }
 
-async fn remove_listener(State(server): State<Arc<Server>>, Path(id): Path<String>) -> StatusCode {
+pub async fn remove_listener(State(server): State<Arc<Server>>, Path(id): Path<String>) -> StatusCode {
     server.remove_listener(&id).await;
     StatusCode::OK
 }
