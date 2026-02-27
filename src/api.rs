@@ -1,13 +1,13 @@
-use std::sync::Arc;
 use axum::{
-    Router, Json,
-    extract::{State, Path},
+    Json, Router,
+    extract::{Path, State},
     http::StatusCode,
     routing::{delete, get, post, put},
 };
+use std::sync::Arc;
 
-use crate::{Server, model::ListenerResponse};
 use crate::config::{Config, ListenerConfig};
+use crate::{Server, model::ListenerResponse};
 
 pub struct Api {
     cfg: Config,
@@ -46,25 +46,23 @@ impl Api {
 
 #[axum::debug_handler]
 async fn get_all_listeners(
-    State(server): State<Arc<Server>>
-) -> (StatusCode, Json<Vec<ListenerResponse>>)
-{
+    State(server): State<Arc<Server>>,
+) -> (StatusCode, Json<Vec<ListenerResponse>>) {
     let listeners = server.get_all_listeners().await;
     (StatusCode::OK, Json(listeners))
 }
 
 async fn add_listener(
     State(server): State<Arc<Server>>,
-    Json(body): Json<ListenerConfig>
-) -> StatusCode
-{
+    Json(body): Json<ListenerConfig>,
+) -> StatusCode {
     server.add_listener(body).await;
     StatusCode::OK
 }
 
 async fn get_listener(
     State(server): State<Arc<Server>>,
-    Path(id): Path<String>
+    Path(id): Path<String>,
 ) -> (StatusCode, Json<Option<ListenerResponse>>) {
     let listener = server.get_listener(&id).await;
     (StatusCode::OK, Json(listener))
@@ -72,16 +70,13 @@ async fn get_listener(
 
 async fn update_listener(
     State(server): State<Arc<Server>>,
-    Json(body): Json<ListenerConfig>
+    Json(body): Json<ListenerConfig>,
 ) -> StatusCode {
     server.update_listener(body).await;
     StatusCode::OK
 }
 
-async fn remove_listener(
-    State(server): State<Arc<Server>>,
-    Path(id): Path<String>
-) -> StatusCode {
+async fn remove_listener(State(server): State<Arc<Server>>, Path(id): Path<String>) -> StatusCode {
     server.remove_listener(&id).await;
     StatusCode::OK
 }
