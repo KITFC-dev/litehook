@@ -11,8 +11,8 @@ use config::{Config, ListenerConfig};
 use db::Db;
 use listener::Listener;
 
-pub mod config;
 pub mod api;
+pub mod config;
 mod db;
 mod listener;
 mod model;

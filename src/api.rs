@@ -1,16 +1,16 @@
 use axum::{
-    routing::{get, post, put, delete}, 
-    Router
+    Router,
+    routing::{delete, get, post, put},
 };
 
-use crate::config::Config;
 use crate::Server;
+use crate::config::Config;
 
 #[allow(unused)]
 pub struct Api {
     cfg: Config,
     router: Router,
-    server: std::sync::Arc<Server>
+    server: std::sync::Arc<Server>,
 }
 
 impl Api {
@@ -24,13 +24,17 @@ impl Api {
             .route("/listeners/{id}", put(Self::update_listener))
             .route("/listeners/{id}", delete(Self::remove_listener))
             .with_state(std::sync::Arc::clone(&server));
-        Ok(Self { cfg, router, server })
+        Ok(Self {
+            cfg,
+            router,
+            server,
+        })
     }
 
     #[allow(unused)]
     pub async fn run(&self) -> anyhow::Result<()> {
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.cfg.port)).await?;
-        
+
         axum::serve(listener, self.router.clone())
             .with_graceful_shutdown(self.server.shutdown.clone().cancelled_owned())
             .await?;
