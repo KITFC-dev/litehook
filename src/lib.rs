@@ -133,22 +133,21 @@ impl Server {
     ///
     /// Works by removing the old listener and adding a new one
     /// with the updated configuration. Maybe can be improved in the future.
-    #[allow(unused)]
     async fn update_listener(&self, cfg: ListenerConfig) {
         self.remove_listener(&cfg.id).await;
         self.add_listener(cfg).await;
     }
 
     /// Get a [Listener] by id
-    pub async fn get_listener(&self, id: &str) -> Option<Arc<Listener>> {
+    pub async fn get_listener(&self, id: &str) -> Option<model::ListenerResponse> {
         let listeners = self.listeners.lock().await;
-        listeners.get(id).cloned()
+        listeners.get(id).map(|l| l.cfg.clone().into())
     }
 
     /// Get all [Listener]s
-    pub async fn get_all_listeners(&self) -> Vec<Arc<Listener>> {
+    pub async fn get_all_listeners(&self) -> Vec<model::ListenerResponse> {
         let listeners = self.listeners.lock().await;
-        listeners.values().cloned().collect()
+        listeners.values().map(|l| l.cfg.clone().into()).collect()
     }
 
     async fn spawn_listener(&self, cfg: ListenerConfig) {

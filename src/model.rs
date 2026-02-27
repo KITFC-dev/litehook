@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
 
+use crate::config::ListenerConfig;
+
 /// Post reactions
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct PostReaction {
@@ -54,6 +56,18 @@ pub struct Channel {
     pub description: Option<String>,
 }
 
+/// Listener response for web api
+#[derive(Serialize)]
+pub struct ListenerResponse {
+    pub id: String,
+    pub active: bool,
+    pub poll_interval: u64,
+    pub channel_url: String,
+    pub proxy_list_url: Option<String>,
+    pub webhook_url: String,
+    pub webhook_secret: Option<String>,
+}
+
 /// Webhook payload with channel and new posts
 #[derive(Serialize, Debug)]
 pub struct WebhookPayload<'a> {
@@ -78,6 +92,21 @@ impl From<PostRow> for Post {
             reactions: row.reactions.0,
             views: Some(row.views),
             date: Some(row.date),
+        }
+    }
+}
+
+/// Convert ListenerConfig to ListenerResponse
+impl From<ListenerConfig> for ListenerResponse {
+    fn from(cfg: ListenerConfig) -> Self {
+        Self {
+            id: cfg.id,
+            active: true,
+            poll_interval: cfg.poll_interval,
+            channel_url: cfg.channel_url,
+            proxy_list_url: cfg.proxy_list_url,
+            webhook_url: cfg.webhook_url,
+            webhook_secret: cfg.webhook_secret,
         }
     }
 }

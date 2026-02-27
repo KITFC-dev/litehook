@@ -6,7 +6,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::{Server};
+use crate::{Server, model::ListenerResponse};
 use crate::config::{Config, ListenerConfig};
 
 pub struct Api {
@@ -19,11 +19,11 @@ impl Api {
     pub async fn new(cfg: Config, server: Arc<Server>) -> anyhow::Result<Self> {
         tracing::info!("starting web api");
         let router = Router::new()
-            .route("/listeners", get(Self::get_all_listeners))
-            .route("/listeners", post(Self::add_listener))
-            .route("/listeners/{id}", get(Self::get_listener))
-            .route("/listeners/{id}", put(Self::update_listener))
-            .route("/listeners/{id}", delete(Self::remove_listener))
+            .route("/listeners", get(get_all_listeners))
+            .route("/listeners", post(add_listener))
+            .route("/listeners/{id}", get(get_listener))
+            .route("/listeners/{id}", put(update_listener))
+            .route("/listeners/{id}", delete(remove_listener))
             .with_state(Arc::clone(&server));
         Ok(Self {
             cfg,
@@ -42,45 +42,46 @@ impl Api {
         tracing::info!("web api stopped");
         Ok(())
     }
+}
 
-    async fn get_all_listeners(
-        State(_server): State<Arc<Server>>
-    ) -> (StatusCode, Json<Vec<String>>)
-    {
-        //! Return empty string vec for testing
-        (StatusCode::OK, Json(vec![]))
-    }
+#[axum::debug_handler]
+async fn get_all_listeners(
+    State(server): State<Arc<Server>>
+) -> (StatusCode, Json<Vec<ListenerResponse>>)
+{
+    let listeners = server.get_all_listeners().await;
+    (StatusCode::OK, Json(listeners))
+}
 
-    async fn add_listener(
-        State(server): State<Arc<Server>>,
-        Json(body): Json<ListenerConfig>
-    ) -> StatusCode
-    {
-        server.add_listener(body).await;
-        StatusCode::OK
-    }
+async fn add_listener(
+    State(server): State<Arc<Server>>,
+    Json(body): Json<ListenerConfig>
+) -> StatusCode
+{
+    server.add_listener(body).await;
+    StatusCode::OK
+}
 
-    async fn get_listener(
-        State(_server): State<Arc<Server>>,
-        Path(id): Path<String>
-    ) -> (StatusCode, String) {
-        //! Return empty string for testing
-        (StatusCode::OK, id.to_string())
-    }
+async fn get_listener(
+    State(server): State<Arc<Server>>,
+    Path(id): Path<String>
+) -> (StatusCode, Json<Option<ListenerResponse>>) {
+    let listener = server.get_listener(&id).await;
+    (StatusCode::OK, Json(listener))
+}
 
-    async fn update_listener(
-        State(server): State<Arc<Server>>,
-        Json(body): Json<ListenerConfig>
-    ) -> StatusCode {
-        server.update_listener(body).await;
-        StatusCode::OK
-    }
+async fn update_listener(
+    State(server): State<Arc<Server>>,
+    Json(body): Json<ListenerConfig>
+) -> StatusCode {
+    server.update_listener(body).await;
+    StatusCode::OK
+}
 
-    async fn remove_listener(
-        State(server): State<Arc<Server>>,
-        Path(id): Path<String>
-    ) -> StatusCode {
-        server.remove_listener(&id).await;
-        StatusCode::OK
-    }
+async fn remove_listener(
+    State(server): State<Arc<Server>>,
+    Path(id): Path<String>
+) -> StatusCode {
+    server.remove_listener(&id).await;
+    StatusCode::OK
 }
