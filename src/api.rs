@@ -88,7 +88,10 @@ pub async fn update_listener(
     StatusCode::OK
 }
 
-pub async fn remove_listener(State(server): State<Arc<Server>>, Path(id): Path<String>) -> StatusCode {
+pub async fn remove_listener(
+    State(server): State<Arc<Server>>,
+    Path(id): Path<String>,
+) -> StatusCode {
     server.remove_listener(&id).await;
     StatusCode::OK
 }

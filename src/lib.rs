@@ -14,7 +14,7 @@ use listener::Listener;
 pub mod api;
 pub mod config;
 mod db;
-mod listener;
+pub mod listener;
 mod model;
 mod parser;
 
