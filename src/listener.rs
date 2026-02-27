@@ -19,13 +19,9 @@ pub struct Listener {
 }
 
 impl Listener {
-    pub async fn new(
-        cfg: ListenerConfig,
-        db: Db,
-        client_builder: reqwest::ClientBuilder,
-    ) -> anyhow::Result<Self> {
+    pub async fn new(cfg: ListenerConfig, db: Db) -> anyhow::Result<Self> {
         tracing::info!("initializing listener for {}", cfg.channel_url);
-        let client = Self::configure_proxy(client_builder, &cfg.proxy_list_url).await?;
+        let client = Self::create_client(&cfg.proxy_list_url).await?;
         Ok(Self {
             cfg,
             db,
@@ -93,10 +89,15 @@ impl Listener {
     }
 
     /// Create web client
-    async fn configure_proxy(
-        mut builder: reqwest::ClientBuilder,
-        proxy_list_url: &Option<String>,
-    ) -> anyhow::Result<reqwest::Client> {
+    async fn create_client(proxy_list_url: &Option<String>) -> anyhow::Result<reqwest::Client> {
+        let mut builder = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .user_agent(format!(
+                "{}/{}",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            ));
+
         if let Some(url) = proxy_list_url {
             tracing::info!("configuring proxy");
             let addr = get_proxy(url).await?;

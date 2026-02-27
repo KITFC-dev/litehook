@@ -5,7 +5,6 @@
 
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, mpsc};
-use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 use config::{Config, ListenerConfig};
@@ -92,8 +91,8 @@ impl Server {
                         }
                         cmd = cmd_rx.recv() => {
                             match cmd {
-                                Some(ListenerCmd::Add(cfg)) => self._add_listener(cfg).await,
-                                Some(ListenerCmd::Remove(id)) => self._remove_listener(&id).await,
+                                Some(ListenerCmd::Add(cfg)) => self.spawn_listener(cfg).await,
+                                Some(ListenerCmd::Remove(id)) => self.shutdown_listener(&id).await,
                                 None => break, // Channel closed
                             }
                         }
@@ -151,17 +150,9 @@ impl Server {
         listeners.values().cloned().collect()
     }
 
-    async fn _add_listener(&self, cfg: ListenerConfig) {
-        let client_builder = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .user_agent(format!(
-                "{}/{}",
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_PKG_VERSION")
-            ));
-
+    async fn spawn_listener(&self, cfg: ListenerConfig) {
         let id = cfg.id.clone();
-        let listener = match Listener::new(cfg, self.db.clone(), client_builder).await {
+        let listener = match Listener::new(cfg, self.db.clone()).await {
             Ok(listener) => Arc::new(listener),
             Err(e) => {
                 tracing::error!("failed to create listener: {e}");
@@ -177,7 +168,7 @@ impl Server {
         tokio::task::spawn_local(async move { listener.run().await });
     }
 
-    async fn _remove_listener(&self, id: &str) {
+    async fn shutdown_listener(&self, id: &str) {
         let mut listeners = self.listeners.lock().await;
         if let Some(listener) = listeners.remove(id) {
             if let Err(e) = listener.stop().await {
