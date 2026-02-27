@@ -56,6 +56,7 @@ Environment variables used by litehook, for example in your `.env` file.
 | WEBHOOK_SECRET | Webhook secret in `x-secret` header |
 | PROXY_LIST_URL | URL to SOCKS5 proxy list, you can try using [IPLocate proxy list](https://github.com/iplocate/free-proxy-list). But be aware that proxy can be slow and timeout. |
 | DB_PATH | Path to SQLite database file, default is `data/litehook.db` |
+| PORT | Port for web interface, default is `4101` |
 
 > [!TIP]
 > Set `POLL_INTERVAL` to something reasonable if you don't want to get rate limited by telegram, for example if the channel is posting rarely set to something like 300-600 seconds, otherwise set to a lower value.
