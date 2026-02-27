@@ -139,6 +139,18 @@ impl Server {
         self.add_listener(cfg).await;
     }
 
+    /// Get a [Listener] by id
+    pub async fn get_listener(&self, id: &str) -> Option<Arc<Listener>> {
+        let listeners = self.listeners.lock().await;
+        listeners.get(id).cloned()
+    }
+
+    /// Get all [Listener]s
+    pub async fn get_all_listeners(&self) -> Vec<Arc<Listener>> {
+        let listeners = self.listeners.lock().await;
+        listeners.values().cloned().collect()
+    }
+
     async fn _add_listener(&self, cfg: ListenerConfig) {
         let client_builder = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
