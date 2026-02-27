@@ -29,7 +29,7 @@ pub struct Api {
 impl Api {
     /// Create a new instance of [Api]
     pub async fn new(cfg: Config, server: Arc<Server>) -> anyhow::Result<Self> {
-        tracing::info!("starting web api");
+        tracing::info!("starting web api on port {}", cfg.port);
         let router = Router::new()
             .route("/listeners", get(get_all_listeners))
             .route("/listeners", post(add_listener))
