@@ -8,7 +8,7 @@ pub struct Config {
     pub port: u16,
 
     #[serde(default = "default_interval")]
-    pub poll_interval: u64,
+    pub poll_interval: i64,
 
     #[serde(default = "default_db_path")]
     pub db_path: String,
@@ -25,7 +25,7 @@ pub struct ListenerConfig {
     pub id: String,
 
     #[serde(default = "default_interval")]
-    pub poll_interval: u64,
+    pub poll_interval: i64,
     pub channel_url: String,
     pub proxy_list_url: Option<String>,
     pub webhook_url: String,
@@ -44,7 +44,7 @@ fn default_port() -> u16 {
     4101
 }
 
-fn default_interval() -> u64 {
+fn default_interval() -> i64 {
     600
 }
 

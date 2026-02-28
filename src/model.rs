@@ -23,6 +23,17 @@ pub struct PostRow {
     pub date: String,
 }
 
+/// DB row for Listener
+#[derive(Serialize, FromRow)]
+pub struct ListenerRow {
+    pub id: String,
+    pub active: bool,
+    pub poll_interval: i64,
+    pub channel_url: String,
+    pub proxy_list_url: Option<String>,
+    pub webhook_url: String,
+}
+
 /// Telegram post
 #[derive(Serialize, Clone, PartialEq, Debug)]
 pub struct Post {
@@ -56,17 +67,6 @@ pub struct Channel {
     pub description: Option<String>,
 }
 
-/// Listener response for web api
-#[derive(Serialize)]
-pub struct ListenerResponse {
-    pub id: String,
-    pub active: bool,
-    pub poll_interval: u64,
-    pub channel_url: String,
-    pub proxy_list_url: Option<String>,
-    pub webhook_url: String,
-}
-
 /// Webhook payload with channel and new posts
 #[derive(Serialize, Debug)]
 pub struct WebhookPayload<'a> {
@@ -95,8 +95,8 @@ impl From<PostRow> for Post {
     }
 }
 
-/// Convert ListenerConfig to ListenerResponse
-impl From<ListenerConfig> for ListenerResponse {
+/// Convert ListenerConfig to ListenerRow
+impl From<ListenerConfig> for ListenerRow {
     fn from(cfg: ListenerConfig) -> Self {
         Self {
             id: cfg.id,

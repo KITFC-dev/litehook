@@ -5,7 +5,7 @@ use sqlx::types::Json;
 use std::path::Path;
 use tokio::fs;
 
-use crate::model::{Post, PostRow};
+use crate::model::{Post, PostRow, ListenerRow};
 
 /// SQLite database
 #[derive(Clone)]
@@ -59,12 +59,24 @@ impl Db {
         .await
         .unwrap();
 
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS listeners (
+                id TEXT PRIMARY KEY,
+                active BOOLEAN,
+                poll_interval INTEGER,
+                channel_url TEXT,
+                proxy_list_url TEXT,
+                webhook_url TEXT
+            )",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
         Ok(Self { pool })
     }
 
     /// Insert a post into the database
-    ///
-    /// Returns [Result]
     pub async fn insert_post(&self, post: &Post) -> Result<()> {
         sqlx::query(
             "INSERT OR REPLACE INTO posts 
@@ -85,8 +97,6 @@ impl Db {
     }
 
     /// Select a post from the database
-    ///
-    /// Returns [Option<Post>]
     pub async fn get_posts(&self, id: &str) -> Result<Option<Post>> {
         let row: Option<PostRow> = sqlx::query_as(
             "SELECT id, author, text, media, reactions, views, date 
@@ -97,6 +107,56 @@ impl Db {
         .await?;
 
         Ok(row.map(Into::into))
+    }
+
+    pub async fn insert_listener(&self, cfg: ListenerRow) -> Result<()> {
+        sqlx::query(
+            "INSERT OR REPLACE INTO listeners
+            (id, active, poll_interval, channel_url, proxy_list_url, webhook_url)
+            VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&cfg.id)
+        .bind(&cfg.active)
+        .bind(cfg.poll_interval)
+        .bind(&cfg.channel_url)
+        .bind(&cfg.proxy_list_url)
+        .bind(&cfg.webhook_url)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_listener(&self, id: &str) -> Result<Option<ListenerRow>> {
+        let row: Option<ListenerRow> = sqlx::query_as(
+            "SELECT id, active, poll_interval, channel_url, proxy_list_url, webhook_url
+            FROM listeners WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row)
+    }
+
+    pub async fn get_all_listeners(&self) -> Result<Vec<ListenerRow>> {
+        let rows: Vec<ListenerRow> = sqlx::query_as(
+            "SELECT id, active, poll_interval, channel_url, proxy_list_url, webhook_url
+            FROM listeners",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows)
+    }
+
+    pub async fn delete_listener(&self, id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM listeners WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
     }
 }
 

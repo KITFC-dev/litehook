@@ -139,13 +139,13 @@ impl Server {
     }
 
     /// Get a [Listener] by id
-    pub async fn get_listener(&self, id: &str) -> Option<model::ListenerResponse> {
+    pub async fn get_listener(&self, id: &str) -> Option<model::ListenerRow> {
         let listeners = self.listeners.lock().await;
         listeners.get(id).map(|l| l.cfg.clone().into())
     }
 
     /// Get all [Listener]s
-    pub async fn get_all_listeners(&self) -> Vec<model::ListenerResponse> {
+    pub async fn get_all_listeners(&self) -> Vec<model::ListenerRow> {
         let listeners = self.listeners.lock().await;
         listeners.values().map(|l| l.cfg.clone().into()).collect()
     }

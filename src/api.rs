@@ -7,7 +7,7 @@ use axum::{
 use std::sync::Arc;
 
 use crate::config::{Config, ListenerConfig};
-use crate::{Server, model::ListenerResponse};
+use crate::{Server, model::ListenerRow};
 
 /// Web API and dashboard for managing [Server] listeners.
 ///
@@ -59,7 +59,7 @@ impl Api {
 
 pub async fn get_all_listeners(
     State(server): State<Arc<Server>>,
-) -> (StatusCode, Json<Vec<ListenerResponse>>) {
+) -> (StatusCode, Json<Vec<ListenerRow>>) {
     let listeners = server.get_all_listeners().await;
     (StatusCode::OK, Json(listeners))
 }
@@ -75,7 +75,7 @@ pub async fn add_listener(
 pub async fn get_listener(
     State(server): State<Arc<Server>>,
     Path(id): Path<String>,
-) -> (StatusCode, Json<Option<ListenerResponse>>) {
+) -> (StatusCode, Json<Option<ListenerRow>>) {
     let listener = server.get_listener(&id).await;
     (StatusCode::OK, Json(listener))
 }
