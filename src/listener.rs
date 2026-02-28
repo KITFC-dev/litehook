@@ -51,7 +51,6 @@ impl Listener {
 
     /// Poll URL with wait
     async fn poll_cycle(&self, url: &str) -> anyhow::Result<()> {
-        tracing::info!("polling {}", url);
         self.poll(url).await?;
         sleep(Duration::from_secs(
             self.cfg.poll_interval.try_into().unwrap(),

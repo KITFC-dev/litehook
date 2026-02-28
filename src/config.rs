@@ -63,10 +63,10 @@ where
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| {
-            if s.starts_with("https://") {
-                s.to_string()
+            if s.starts_with("https://t.me/s/") {
+                s[8..].to_string()
             } else {
-                format!("https://t.me/s/{}", s)
+                s.to_string()
             }
         })
         .collect();

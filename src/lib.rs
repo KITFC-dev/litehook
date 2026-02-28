@@ -71,17 +71,17 @@ impl Server {
 
         local
             .run_until(async {
-                for url in &self.cfg.channels {
+                for id in &self.cfg.channels {
                     let test_cfg = ListenerConfig {
-                        id: url.clone(),
+                        id: id.clone(),
                         poll_interval: self.cfg.poll_interval,
-                        channel_url: url.clone(),
+                        channel_url: format!("https://t.me/s/{}", id),
                         proxy_list_url: self.cfg.proxy_list_url.clone(),
                         webhook_url: self.cfg.webhook_url.clone(),
                         webhook_secret: self.cfg.webhook_secret.clone(),
                     };
                     if let Err(e) = self.add_listener(test_cfg).await {
-                        tracing::error!("failed to add initial listeners {}: {e}", url);
+                        tracing::error!("failed to add initial listener {}: {e}", id);
                     }
                 }
 
