@@ -6,7 +6,7 @@ const accentColor = style.getPropertyValue('--accent-color').trim();
 
 async function fetchListeners() {
     try {
-        const res = await fetch('http://127.0.0.1:4101/listeners');
+        const res = await fetch('/listeners');
         const data = await res.json();
         const container = document.getElementById('listeners-list');
         container.innerHTML = '';
@@ -45,8 +45,10 @@ async function fetchListeners() {
 }
 
 async function editListener(id) {
-    const res = await fetch(`http://127.0.0.1:4101/listeners/${id}`);
+    const res = await fetch(`/listeners/${id}`);
     const listener = await res.json();
+
+    // Send swal
     Swal.fire({
         customClass: {
             confirmButton: 'swal-confirm'
@@ -66,6 +68,7 @@ async function editListener(id) {
                 <input id="swal-interval" class="swal2-input" type="number" value="${listener.poll_interval}">
             </div>
         `,
+        // Prepare form
         preConfirm: () => ({
             id,
             channel_url: document.getElementById('swal-channel').value,
@@ -74,7 +77,7 @@ async function editListener(id) {
         })
     }).then(result => {
         if (result.isConfirmed) {
-            fetch(`http://127.0.0.1:4101/listeners/${id}`, {
+            fetch(`/listeners/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(result.value)
@@ -83,6 +86,7 @@ async function editListener(id) {
     });
 }
 
+// Control buttons listener
 document.getElementById('listeners-list').addEventListener('click', async (e) => {
     const btn = e.target.closest('button.listener-control');
     if (!btn) return;
@@ -91,7 +95,7 @@ document.getElementById('listeners-list').addEventListener('click', async (e) =>
     const id = btn.dataset.id;
 
     if (action === 'stop') {
-        await fetch(`http://127.0.0.1:4101/listeners/${id}`, { method: 'DELETE' });
+        await fetch(`/listeners/${id}`, { method: 'DELETE' });
     } else if (action === 'edit') {
         await editListener(id);
     }
