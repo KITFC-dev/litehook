@@ -1,3 +1,9 @@
+const style = getComputedStyle(document.documentElement);
+const bgColor = style.getPropertyValue('--bg-color').trim();
+const mantle = style.getPropertyValue('--mantle').trim();
+const textColor = style.getPropertyValue('--text-color').trim();
+const accentColor = style.getPropertyValue('--accent-color').trim();
+
 async function fetchListeners() {
     try {
         const res = await fetch('http://127.0.0.1:4101/listeners');
@@ -38,5 +44,58 @@ async function fetchListeners() {
     }
 }
 
+async function editListener(id) {
+    const res = await fetch(`http://127.0.0.1:4101/listeners/${id}`);
+    const listener = await res.json();
+    Swal.fire({
+        customClass: {
+            confirmButton: 'swal-confirm'
+        },
+        title: 'Edit Listener ' + id,
+        background: mantle,
+        color: textColor,
+        confirmButtonColor: accentColor,
+        confirmButtonText: 'Update Listener',
+        html: `
+            <div class="swal2-html-container">
+                <h4>Channel URL</h4>
+                <input id="swal-channel" class="swal2-input" value="${listener.channel_url}">
+                <h4>Webhook URL</h4>
+                <input id="swal-webhook" class="swal2-input" value="${listener.webhook_url}">
+                <h4>Poll Interval (in seconds)</h4>
+                <input id="swal-interval" class="swal2-input" type="number" value="${listener.poll_interval}">
+            </div>
+        `,
+        preConfirm: () => ({
+            id,
+            channel_url: document.getElementById('swal-channel').value,
+            webhook_url: document.getElementById('swal-webhook').value,
+            poll_interval: parseInt(document.getElementById('swal-interval').value),
+        })
+    }).then(result => {
+        if (result.isConfirmed) {
+            fetch(`http://127.0.0.1:4101/listeners/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(result.value)
+            });
+        }
+    });
+}
+
+document.getElementById('listeners-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button.listener-control');
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+
+    if (action === 'stop') {
+        await fetch(`http://127.0.0.1:4101/listeners/${id}`, { method: 'DELETE' });
+    } else if (action === 'edit') {
+        await editListener(id);
+    }
+});
+
 fetchListeners();
-setInterval(fetchListeners, 5000);
+setInterval(fetchListeners, 1000);

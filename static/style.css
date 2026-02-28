@@ -69,7 +69,7 @@ hr {
     margin-bottom: 30px;
 }
 
-button {
+button, .swal-confirm {
     background-color: var(--accent-color);
     color: var(--bg-color);
     padding: 10px 20px;
@@ -79,7 +79,7 @@ button {
     font-weight: bold;
 }
 
-button:hover {
+button:hover, .swal-confirm:hover {
     background-color: var(--accent-hover-color);
 }
 
