@@ -5,6 +5,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::config::{Config, ListenerConfig};
 use crate::{Server, model::ListenerRow};
@@ -30,12 +31,18 @@ impl Api {
     /// Create a new instance of [Api]
     pub async fn new(cfg: Config, server: Arc<Server>) -> anyhow::Result<Self> {
         tracing::info!("starting web api on port {}", cfg.port);
+        let cors = CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any);
+
         let router = Router::new()
             .route("/listeners", get(get_all_listeners))
             .route("/listeners", post(add_listener))
             .route("/listeners/{id}", get(get_listener))
             .route("/listeners/{id}", put(update_listener))
             .route("/listeners/{id}", delete(remove_listener))
+            .layer(cors)
             .with_state(Arc::clone(&server));
         Ok(Self {
             cfg,
