@@ -65,7 +65,6 @@ pub struct ListenerResponse {
     pub channel_url: String,
     pub proxy_list_url: Option<String>,
     pub webhook_url: String,
-    pub webhook_secret: Option<String>,
 }
 
 /// Webhook payload with channel and new posts
@@ -106,7 +105,6 @@ impl From<ListenerConfig> for ListenerResponse {
             channel_url: cfg.channel_url,
             proxy_list_url: cfg.proxy_list_url,
             webhook_url: cfg.webhook_url,
-            webhook_secret: cfg.webhook_secret,
         }
     }
 }
