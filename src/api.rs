@@ -60,15 +60,24 @@ impl Api {
 pub async fn get_all_listeners(
     State(server): State<Arc<Server>>,
 ) -> (StatusCode, Json<Vec<ListenerRow>>) {
-    let listeners = server.get_all_listeners().await;
-    (StatusCode::OK, Json(listeners))
+    match server.get_all_listeners().await {
+        Ok(l) => (StatusCode::OK, Json(l)),
+        Err(e) => {
+            tracing::error!("failed to get all listeners: {e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::new()))
+        }
+    }
 }
 
 pub async fn add_listener(
     State(server): State<Arc<Server>>,
     Json(body): Json<ListenerConfig>,
 ) -> StatusCode {
-    server.add_listener(body).await;
+    if let Err(e) = server.add_listener(body).await {
+        tracing::error!("failed to add listener: {e}");
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
     StatusCode::OK
 }
 
@@ -76,15 +85,24 @@ pub async fn get_listener(
     State(server): State<Arc<Server>>,
     Path(id): Path<String>,
 ) -> (StatusCode, Json<Option<ListenerRow>>) {
-    let listener = server.get_listener(&id).await;
-    (StatusCode::OK, Json(listener))
+    match server.get_listener(&id).await {
+        Ok(l) => (StatusCode::OK, Json(l)),
+        Err(e) => {
+            tracing::error!("failed to get listener: {e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
+        }
+    }
 }
 
 pub async fn update_listener(
     State(server): State<Arc<Server>>,
     Json(body): Json<ListenerConfig>,
 ) -> StatusCode {
-    server.update_listener(body).await;
+    if let Err(e) = server.update_listener(body).await {
+        tracing::error!("failed to update listener: {e}");
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
     StatusCode::OK
 }
 
@@ -92,6 +110,10 @@ pub async fn remove_listener(
     State(server): State<Arc<Server>>,
     Path(id): Path<String>,
 ) -> StatusCode {
-    server.remove_listener(&id).await;
+    if let Err(e) = server.remove_listener(&id).await {
+        tracing::error!("failed to remove listener: {e}");
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+
     StatusCode::OK
 }

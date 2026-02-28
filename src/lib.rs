@@ -65,7 +65,7 @@ impl Server {
     /// Spawns listener local tasks listens to mpsc commands
     /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
-        tracing::info!("adding {} listeners", &self.cfg.channels.len());
+        tracing::info!("adding {} listeners", self.cfg.channels.len());
         // Local set is needed because scraper is !Send
         let local = tokio::task::LocalSet::new();
 
@@ -80,7 +80,9 @@ impl Server {
                         webhook_url: self.cfg.webhook_url.clone(),
                         webhook_secret: self.cfg.webhook_secret.clone(),
                     };
-                    self.add_listener(test_cfg).await;
+                    if let Err(e) = self.add_listener(test_cfg).await {
+                        tracing::error!("failed to add initial listeners {}: {e}", url);
+                    }
                 }
 
                 let mut cmd_rx = self.cmd_rx.lock().await;
@@ -107,40 +109,42 @@ impl Server {
     }
 
     /// Send an add command to server to create a [Listener].
-    pub async fn add_listener(&self, cfg: ListenerConfig) {
-        self.cmd_tx.send(ListenerCmd::Add(cfg)).await.unwrap();
+    pub async fn add_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
+        self.cmd_tx.send(ListenerCmd::Add(cfg)).await?;
+        Ok(())
     }
 
     /// Send a remove command to server to remove a [Listener]
-    pub async fn remove_listener(&self, id: &str) {
+    pub async fn remove_listener(&self, id: &str) -> anyhow::Result<()> {
         self.cmd_tx
             .send(ListenerCmd::Remove(id.to_string()))
-            .await
-            .unwrap();
+            .await?;
+        Ok(())
     }
 
     /// Update a [Listener]
     ///
     /// Works by calling [Server::remove_listener] and then [Server::add_listener].
     /// Maybe can be improved in the future.
-    pub async fn update_listener(&self, cfg: ListenerConfig) {
-        self.remove_listener(&cfg.id).await;
-        self.add_listener(cfg).await;
+    pub async fn update_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
+        self.remove_listener(&cfg.id).await?;
+        self.add_listener(cfg).await?;
+        Ok(())
     }
 
     /// Get a [Listener] by id from the database
-    pub async fn get_listener(&self, id: &str) -> Option<model::ListenerRow> {
-        self.db.get_listener(id).await.unwrap()
+    pub async fn get_listener(&self, id: &str) -> anyhow::Result<Option<model::ListenerRow>> {
+        self.db.get_listener(id).await
     }
 
     /// Get all [Listener]s from the database
-    pub async fn get_all_listeners(&self) -> Vec<model::ListenerRow> {
-        self.db.get_all_listeners().await.unwrap()
+    pub async fn get_all_listeners(&self) -> anyhow::Result<Vec<model::ListenerRow>> {
+        self.db.get_all_listeners().await
     }
 
     /// Stop all [Listener]s and clear the listeners hashmap.
     ///
-    /// Can be called only in [Server::run]'s local task.
+    /// This has double locking, but its alright for now.
     async fn stop_all(&self) {
         tracing::info!("stopping all listeners");
 
@@ -155,7 +159,19 @@ impl Server {
     }
 
     async fn spawn_listener(&self, cfg: ListenerConfig) {
-        let listener = Arc::new(Listener::new(cfg, self.db.clone()).await.unwrap());
+        // Check if listenr already exists
+        if self.listeners.lock().await.contains_key(&cfg.id) {
+            tracing::warn!("listener {} already exists", cfg.id);
+            return;
+        }
+
+        let listener = match Listener::new(cfg, self.db.clone()).await {
+            Ok(l) => Arc::new(l),
+            Err(e) => {
+                tracing::error!("failed to create listener: {e}");
+                return;
+            }
+        };
 
         // Add to listeners map
         self.listeners
@@ -170,10 +186,9 @@ impl Server {
         });
 
         // Add to db
-        self.db
-            .insert_listener(listener.cfg.clone().into())
-            .await
-            .unwrap();
+        if let Err(e) = self.db.insert_listener(listener.cfg.clone().into()).await {
+            tracing::error!("failed to add listener to db: {e}");
+        }
     }
 
     async fn shutdown_listener(&self, id: &str) {
