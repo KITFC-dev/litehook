@@ -10,6 +10,7 @@
     --accent-hover-color: #7287fd;
 
     --error-color: #d20f39;
+    --info-color: #1e66f5;
     --success-color: #40a02b;
 }
 
@@ -26,6 +27,7 @@
         --accent-hover-color: #b4befe;
 
         --error-color: #f38ba8;
+        --info-color: #89b4fa;
         --success-color: #a6e3a1;
     }
 }
@@ -83,6 +85,18 @@ button:hover, .swal-confirm:hover {
     background-color: var(--accent-hover-color);
 }
 
+#listeners-container {
+    display: flex;
+    flex-direction: column;
+}
+
+#listeners-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
 #listeners-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(500px, 1000px));
@@ -129,7 +143,7 @@ button:hover, .swal-confirm:hover {
     font-weight: normal;
 }
 
-.stop {
+.error {
     background-color: var(--error-color);
     color: var(--bg-color);
     padding: 10px 20px;
@@ -139,7 +153,17 @@ button:hover, .swal-confirm:hover {
     font-weight: bold;
 }
 
-.edit {
+.info {
+    background-color: var(--info-color);
+    color: var(--bg-color);
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.success {
     background-color: var(--success-color);
     color: var(--bg-color);
     padding: 10px 20px;

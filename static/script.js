@@ -31,8 +31,8 @@ async function fetchListeners() {
                 </div>
                 <div class="listener-footer">
                     <h4>Controls</h4>
-                    <button class="listener-control stop" data-action="stop" data-id="${listener.id}">Stop</button>
-                    <button class="listener-control edit" data-action="edit" data-id="${listener.id}">Edit</button>
+                    <button class="listener-control error" data-action="delete" data-id="${listener.id}">Delete</button>
+                    <button class="listener-control info" data-action="edit" data-id="${listener.id}">Edit</button>
                 </div>
             `;
 
@@ -86,20 +86,62 @@ async function editListener(id) {
     });
 }
 
+async function addListener() {
+    Swal.fire({
+        customClass: {
+            confirmButton: 'swal-confirm'
+        },
+        title: 'Create Listener',
+        background: mantle,
+        color: textColor,
+        confirmButtonColor: accentColor,
+        confirmButtonText: 'Create',
+        html: `
+            <div class="swal2-html-container">
+                <h4>Listener ID</h4>
+                <input id="swal-id" class="swal2-input" placeholder="unique id">
+                <h4>Channel URL</h4>
+                <input id="swal-channel" class="swal2-input" placeholder="https://t.me/s/...">
+                <h4>Webhook URL</h4>
+                <input id="swal-webhook" class="swal2-input" placeholder="https://...">
+                <h4>Poll Interval (in seconds)</h4>
+                <input id="swal-interval" class="swal2-input" type="number" placeholder="67">
+            </div>
+        `,
+        // Prepare form
+        preConfirm: () => ({
+            id: document.getElementById('swal-id').value,
+            channel_url: document.getElementById('swal-channel').value,
+            webhook_url: document.getElementById('swal-webhook').value,
+            poll_interval: parseInt(document.getElementById('swal-interval').value),
+        })
+    }).then(result => {
+        if (result.isConfirmed) {
+            fetch(`/listeners`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(result.value)
+            });
+        }
+    });
+}
+
 // Control buttons listener
-document.getElementById('listeners-list').addEventListener('click', async (e) => {
+document.getElementById('listeners-container').addEventListener('click', async (e) => {
     const btn = e.target.closest('button.listener-control');
     if (!btn) return;
 
     const action = btn.dataset.action;
     const id = btn.dataset.id;
 
-    if (action === 'stop') {
+    if (action === 'delete') {
         await fetch(`/listeners/${id}`, { method: 'DELETE' });
     } else if (action === 'edit') {
         await editListener(id);
+    } else if (action === 'add') {
+        await addListener();
     }
 });
 
 fetchListeners();
-setInterval(fetchListeners, 1000);
+setInterval(fetchListeners, 2500);
