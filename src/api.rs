@@ -6,6 +6,7 @@ use axum::{
 };
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
 
 use crate::config::{Config, ListenerConfig};
 use crate::{Server, model::ListenerRow};
@@ -42,6 +43,7 @@ impl Api {
             .route("/listeners/{id}", get(get_listener))
             .route("/listeners/{id}", put(update_listener))
             .route("/listeners/{id}", delete(remove_listener))
+            .fallback_service(ServeDir::new("static"))
             .layer(cors)
             .with_state(Arc::clone(&server));
         Ok(Self {
