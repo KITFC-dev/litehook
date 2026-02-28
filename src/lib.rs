@@ -94,7 +94,8 @@ impl Server {
                             match cmd {
                                 Some(ListenerCmd::Add(cfg)) => self.spawn_listener(cfg).await,
                                 Some(ListenerCmd::Remove(id)) => self.shutdown_listener(&id).await,
-                                None => break, // Channel closed
+                                // If channel closed shutdown the server
+                                None => self.shutdown.cancel(),
                             }
                         }
                     }
@@ -105,23 +106,12 @@ impl Server {
         Ok(())
     }
 
-    /// Stop all [Listener]s and clear the listeners hashmap.
-    async fn stop_all(&self) {
-        tracing::info!("stopping all listeners");
-        let mut listeners = self.listeners.lock().await;
-        for (_, listener) in listeners.drain() {
-            if let Err(e) = listener.stop().await {
-                tracing::error!("failed to stop listener: {e}");
-            }
-        }
-    }
-
-    /// Add a new [Listener] to the server.
+    /// Send an add command to server to create a [Listener].
     pub async fn add_listener(&self, cfg: ListenerConfig) {
         self.cmd_tx.send(ListenerCmd::Add(cfg)).await.unwrap();
     }
 
-    /// Remove a [Listener] from the server.
+    /// Send a remove command to server to remove a [Listener]
     pub async fn remove_listener(&self, id: &str) {
         self.cmd_tx
             .send(ListenerCmd::Remove(id.to_string()))
@@ -131,48 +121,77 @@ impl Server {
 
     /// Update a [Listener]
     ///
-    /// Works by removing the old listener and adding a new one
-    /// with the updated configuration. Maybe can be improved in the future.
-    async fn update_listener(&self, cfg: ListenerConfig) {
+    /// Works by calling [Server::remove_listener] and then [Server::add_listener].
+    /// Maybe can be improved in the future.
+    pub async fn update_listener(&self, cfg: ListenerConfig) {
         self.remove_listener(&cfg.id).await;
         self.add_listener(cfg).await;
     }
 
-    /// Get a [Listener] by id
+    /// Get a [Listener] by id from the database
     pub async fn get_listener(&self, id: &str) -> Option<model::ListenerRow> {
-        let listeners = self.listeners.lock().await;
-        listeners.get(id).map(|l| l.cfg.clone().into())
+        self.db.get_listener(id).await.unwrap()
     }
 
-    /// Get all [Listener]s
+    /// Get all [Listener]s from the database
     pub async fn get_all_listeners(&self) -> Vec<model::ListenerRow> {
-        let listeners = self.listeners.lock().await;
-        listeners.values().map(|l| l.cfg.clone().into()).collect()
+        self.db.get_all_listeners().await.unwrap()
+    }
+
+    /// Stop all [Listener]s and clear the listeners hashmap.
+    ///
+    /// Can be called only in [Server::run]'s local task.
+    async fn stop_all(&self) {
+        tracing::info!("stopping all listeners");
+
+        let listeners = {
+            let locked = self.listeners.lock().await;
+            locked.values().cloned().collect::<Vec<_>>()
+        };
+
+        for listener in listeners {
+            self.shutdown_listener(&listener.cfg.id).await;
+        }
     }
 
     async fn spawn_listener(&self, cfg: ListenerConfig) {
-        let id = cfg.id.clone();
-        let listener = match Listener::new(cfg, self.db.clone()).await {
-            Ok(listener) => Arc::new(listener),
-            Err(e) => {
-                tracing::error!("failed to create listener: {e}");
-                return;
-            }
-        };
+        let listener = Arc::new(Listener::new(cfg, self.db.clone()).await.unwrap());
 
+        // Add to listeners map
         self.listeners
             .lock()
             .await
-            .insert(id, Arc::clone(&listener));
+            .insert(listener.cfg.id.clone(), Arc::clone(&listener));
 
-        tokio::task::spawn_local(async move { listener.run().await });
+        // Start listener
+        tokio::task::spawn_local({
+            let listener = Arc::clone(&listener);
+            async move { listener.run().await }
+        });
+
+        // Add to db
+        self.db
+            .insert_listener(listener.cfg.clone().into())
+            .await
+            .unwrap();
     }
 
     async fn shutdown_listener(&self, id: &str) {
-        let mut listeners = self.listeners.lock().await;
-        if let Some(listener) = listeners.remove(id) {
+        // Remove from listeners map
+        let listener = {
+            let mut listeners = self.listeners.lock().await;
+            listeners.remove(id)
+        };
+
+        // Stop listener
+        if let Some(listener) = listener {
             if let Err(e) = listener.stop().await {
-                tracing::error!("failed to stop listener: {e}");
+                tracing::error!("failed to stop listener {id}: {e}");
+            }
+
+            // Remove from db
+            if let Err(e) = self.db.delete_listener(id).await {
+                tracing::error!("failed deleting listener from db {id}: {e}");
             }
         } else {
             tracing::warn!("listener not found for channel {}", id);

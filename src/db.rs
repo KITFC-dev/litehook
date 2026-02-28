@@ -5,7 +5,7 @@ use sqlx::types::Json;
 use std::path::Path;
 use tokio::fs;
 
-use crate::model::{Post, PostRow, ListenerRow};
+use crate::model::{ListenerRow, Post, PostRow};
 
 /// SQLite database
 #[derive(Clone)]
@@ -116,7 +116,7 @@ impl Db {
             VALUES (?, ?, ?, ?, ?, ?)",
         )
         .bind(&cfg.id)
-        .bind(&cfg.active)
+        .bind(cfg.active)
         .bind(cfg.poll_interval)
         .bind(&cfg.channel_url)
         .bind(&cfg.proxy_list_url)
