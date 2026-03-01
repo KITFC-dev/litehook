@@ -26,6 +26,7 @@ pub struct Server {
     pub shutdown: CancellationToken,
 
     listeners: Mutex<HashMap<String, Arc<Listener>>>,
+    env: EnvConfig,
     db: db::Db,
 
     cmd_tx: mpsc::Sender<ListenerCmd>,
@@ -50,6 +51,7 @@ impl Server {
         let (cmd_tx, cmd_rx) = mpsc::channel(100);
         let global_cfg = GlobalListenerConfig::from_dotenv()?;
         global_cfg.validate()?;
+        env.validate(&global_cfg)?;
         let (cfg_tx, _) = watch::channel(global_cfg);
 
         let db = db::Db::new(&env.db_path).await?;
@@ -57,6 +59,7 @@ impl Server {
         Ok(Self {
             shutdown: CancellationToken::new(),
             listeners: Mutex::new(HashMap::new()),
+            env,
             db,
             cmd_tx,
             cmd_rx: Mutex::new(cmd_rx),
@@ -74,10 +77,24 @@ impl Server {
 
         local
             .run_until(async {
+                // Load listeners from db
                 for listener in self.db.get_all_listeners().await.unwrap() {
                     self.add_listener(ListenerConfig::from(listener))
                         .await
                         .unwrap();
+                }
+
+                // Load listeners from env
+                if let Some(channels) = &self.env.channels {
+                    for c in channels {
+                        self.add_listener(ListenerConfig {
+                            id: c.clone(),
+                            channel_url: format!("https://t.me/s/{}", c),
+                            ..Default::default()
+                        })
+                            .await
+                            .unwrap();
+                    }
                 }
 
                 let mut cmd_rx = self.cmd_rx.lock().await;

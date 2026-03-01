@@ -9,6 +9,8 @@ pub struct EnvConfig {
 
     #[serde(default = "default_db_path")]
     pub db_path: String,
+
+    pub channels: Option<Vec<String>>,
 }
 
 /// Global listener configuration
@@ -38,6 +40,19 @@ impl EnvConfig {
     pub fn from_dotenv() -> anyhow::Result<Self> {
         dotenvy::dotenv().ok();
         Ok(envy::from_env()?)
+    }
+
+    pub fn validate(&self, global_cfg: &GlobalListenerConfig) -> anyhow::Result<()> {
+        if self.port < 1 || self.port >= 65535 {
+            anyhow::bail!("port must be between 1 and 65535");
+        }
+
+        if self.channels.is_some() && global_cfg.webhook_url.is_none() {
+            anyhow::bail!(
+                "WEBHOOK_URL is required when CHANNELS is set"
+            );
+        }
+        Ok(())
     }
 }
 
@@ -108,6 +123,19 @@ impl ListenerConfig {
         }
 
         Ok(())
+    }
+}
+
+impl Default for ListenerConfig {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            poll_interval: None,
+            channel_url: String::new(),
+            proxy_list_url: None,
+            webhook_url: None,
+            webhook_secret: None,
+        }
     }
 }
 
