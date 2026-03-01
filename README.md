@@ -52,9 +52,10 @@ Environment variables used by litehook, for example in your `.env` file.
 | --- | --- |
 | PORT | Port for web interface, default is `4101` |
 | POLL_INTERVAL | Poll interval in seconds. Default is `600` |
+| CHANNELS | IDs of channels to monitor separated by "," as an alternative to using web dashboard |
 | WEBHOOK_URL | URL to API endpoint that will receive the webhook |
 | WEBHOOK_SECRET | Webhook secret in `x-secret` header |
-| PROXY_LIST_URL | URL to SOCKS5 proxy list, you can try using [IPLocate proxy list](https://github.com/iplocate/free-proxy-list). But be aware that proxy can be slow and timeout. |
+| PROXY_LIST_URL | URL to SOCKS5 proxy list, you can try using [IPLocate proxy list](https://github.com/iplocate/free-proxy-list). But be aware that proxy can be slow and timeout |
 | DB_PATH | Path to SQLite database file, default is `data/litehook.db` |
 
 > [!TIP]
