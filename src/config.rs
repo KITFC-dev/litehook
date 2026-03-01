@@ -1,6 +1,6 @@
 use anyhow::Result;
+use serde::Deserialize;
 use url::Url;
-use serde::{Deserialize};
 
 /// Litehook server configuration
 #[derive(Debug, Deserialize, Clone)]
@@ -87,7 +87,10 @@ impl ListenerConfig {
 
     pub fn validate(&self) -> anyhow::Result<()> {
         if !self.channel_url.starts_with("https://t.me/s/") {
-            anyhow::bail!("channel_url must start with https://t.me/s/: {}", self.channel_url);
+            anyhow::bail!(
+                "channel_url must start with https://t.me/s/: {}",
+                self.channel_url
+            );
         }
 
         match &self.webhook_url {
@@ -99,7 +102,10 @@ impl ListenerConfig {
         }
 
         if self.poll_interval <= 2 {
-            anyhow::bail!("poll_interval must be at least 2 seconds for listener {}", self.id);
+            anyhow::bail!(
+                "poll_interval must be at least 2 seconds for listener {}",
+                self.id
+            );
         }
 
         Ok(())

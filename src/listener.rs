@@ -1,11 +1,11 @@
 use anyhow::anyhow;
 use rand::prelude::IndexedRandom;
 use reqwest::Client;
-use tokio::time::{Duration, sleep};
-use tokio::sync::watch;
-use tokio::sync::RwLock;
-use tokio_util::sync::CancellationToken;
 use std::sync::Arc;
+use tokio::sync::RwLock;
+use tokio::sync::watch;
+use tokio::time::{Duration, sleep};
+use tokio_util::sync::CancellationToken;
 
 use crate::config::{GlobalListenerConfig, ListenerConfig};
 use crate::db::Db;
@@ -32,7 +32,10 @@ impl Listener {
         })
     }
 
-    pub async fn run(&self, mut global_cfg: watch::Receiver<GlobalListenerConfig>) -> anyhow::Result<()> {
+    pub async fn run(
+        &self,
+        mut global_cfg: watch::Receiver<GlobalListenerConfig>,
+    ) -> anyhow::Result<()> {
         loop {
             let channel_url = self.cfg.read().await.channel_url.clone();
 
@@ -61,7 +64,11 @@ impl Listener {
         Ok(())
     }
 
-    pub async fn reconfigure(&self, global_cfg: &GlobalListenerConfig, listener_cfg: ListenerConfig) {
+    pub async fn reconfigure(
+        &self,
+        global_cfg: &GlobalListenerConfig,
+        listener_cfg: ListenerConfig,
+    ) {
         tracing::info!("reconfiguring listener {}", listener_cfg.id);
         *self.cfg.write().await = listener_cfg.merge_with(global_cfg);
     }
@@ -70,10 +77,7 @@ impl Listener {
     async fn poll_cycle(&self, url: &str) -> anyhow::Result<()> {
         let interval = self.cfg.read().await.poll_interval;
         self.poll(url).await?;
-        sleep(Duration::from_secs(
-            interval.try_into().unwrap(),
-        ))
-        .await;
+        sleep(Duration::from_secs(interval.try_into().unwrap())).await;
         Ok(())
     }
 
@@ -96,7 +100,12 @@ impl Listener {
         }
 
         if !new_posts.is_empty() {
-            let webhook_url = self.cfg.read().await.webhook_url.clone()
+            let webhook_url = self
+                .cfg
+                .read()
+                .await
+                .webhook_url
+                .clone()
                 .ok_or(anyhow!("webhook_url is not configured"))?;
             let res = self
                 .send_webhook_retry(&webhook_url, &page.channel, &new_posts, 5)

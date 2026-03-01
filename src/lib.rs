@@ -72,10 +72,10 @@ impl Server {
 
         local
             .run_until(async {
-                    for listener in self.db.get_all_listeners().await.unwrap() {
-                        self.add_listener(ListenerConfig::from(listener))
-                            .await
-                            .unwrap();
+                for listener in self.db.get_all_listeners().await.unwrap() {
+                    self.add_listener(ListenerConfig::from(listener))
+                        .await
+                        .unwrap();
                 }
 
                 let mut cmd_rx = self.cmd_rx.lock().await;
