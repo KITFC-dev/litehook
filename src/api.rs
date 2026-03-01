@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
-use crate::config::{Config, ListenerConfig};
+use crate::config::{EnvConfig, ListenerConfig};
 use crate::{Server, model::ListenerRow};
 
 /// Web API and dashboard for managing [Server] listeners.
@@ -23,15 +23,16 @@ use crate::{Server, model::ListenerRow};
 /// | `PUT` | `/listeners/{id}` | [update_listener] |
 /// | `DELETE` | `/listeners/{id}` | [remove_listener] |
 pub struct Api {
-    cfg: Config,
+    env: EnvConfig,
     router: Router,
     server: Arc<Server>,
 }
 
 impl Api {
     /// Create a new instance of [Api]
-    pub async fn new(cfg: Config, server: Arc<Server>) -> anyhow::Result<Self> {
-        tracing::info!("starting web api on port {}", cfg.port);
+    pub async fn new(server: Arc<Server>) -> anyhow::Result<Self> {
+        let env = EnvConfig::from_dotenv()?;
+        tracing::info!("starting web api on port {}", env.port);
         let cors = CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)
@@ -47,7 +48,7 @@ impl Api {
             .layer(cors)
             .with_state(Arc::clone(&server));
         Ok(Self {
-            cfg,
+            env,
             router,
             server,
         })
@@ -55,7 +56,7 @@ impl Api {
 
     /// Run [Api]
     pub async fn run(&self) -> anyhow::Result<()> {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.cfg.port)).await?;
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", self.env.port)).await?;
 
         axum::serve(listener, self.router.clone())
             .with_graceful_shutdown(self.server.shutdown.clone().cancelled_owned())

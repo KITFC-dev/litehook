@@ -1,5 +1,5 @@
 use anyhow::{Ok, Result};
-use litehook::{Server, api::Api, config};
+use litehook::{Server, api::Api};
 use tracing_subscriber::fmt::time::ChronoLocal;
 
 #[tokio::main]
@@ -11,8 +11,7 @@ async fn main() -> Result<()> {
         .with_target(false)
         .init();
 
-    let cfg = config::Config::from_dotenv()?;
-    let server = std::sync::Arc::new(Server::new(cfg.clone()).await?);
+    let server = std::sync::Arc::new(Server::new().await?);
 
     let shutdown_handle = tokio::spawn({
         let shutdown_token = server.shutdown.clone();
@@ -23,10 +22,9 @@ async fn main() -> Result<()> {
     });
 
     let web_api = tokio::spawn({
-        let cfg = cfg.clone();
         let server = std::sync::Arc::clone(&server);
         async move {
-            let api = Api::new(cfg, server).await.unwrap();
+            let api = Api::new(server).await.unwrap();
             api.run().await.unwrap();
         }
     });

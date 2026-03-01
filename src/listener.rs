@@ -2,16 +2,18 @@ use anyhow::anyhow;
 use rand::prelude::IndexedRandom;
 use reqwest::Client;
 use tokio::time::{Duration, sleep};
+use tokio::sync::watch;
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
+use std::sync::Arc;
 
-use crate::config::ListenerConfig;
+use crate::config::{GlobalListenerConfig, ListenerConfig};
 use crate::db::Db;
 use crate::model::{Channel, Post, WebhookPayload};
 use crate::parser;
 
-#[derive(Clone)]
 pub struct Listener {
-    pub cfg: ListenerConfig,
+    pub cfg: Arc<RwLock<ListenerConfig>>,
 
     db: Db,
     client: Client,
@@ -20,40 +22,56 @@ pub struct Listener {
 
 impl Listener {
     pub async fn new(cfg: ListenerConfig, db: Db) -> anyhow::Result<Self> {
-        tracing::info!("initializing listener for {}", cfg.channel_url);
+        tracing::info!("initializing listener {}", cfg.id);
         let client = Self::create_client(&cfg.proxy_list_url).await?;
         Ok(Self {
-            cfg,
+            cfg: Arc::new(RwLock::new(cfg)),
             db,
             client,
             shutdown: CancellationToken::new(),
         })
     }
 
-    pub async fn run(&self) -> anyhow::Result<()> {
+    pub async fn run(&self, mut global_cfg: watch::Receiver<GlobalListenerConfig>) -> anyhow::Result<()> {
         loop {
+            let channel_url = self.cfg.read().await.channel_url.clone();
+
             tokio::select! {
+                // Shutdown handler
                 _ = self.shutdown.cancelled() => {
                     self.stop().await?;
                     return Ok(());
                 }
 
-                res = self.poll_cycle(&self.cfg.channel_url) => { res? }
+                // Global config change handler
+                _ = global_cfg.changed() => {
+                    let current_cfg = self.cfg.read().await.clone();
+                    self.reconfigure(&global_cfg.borrow_and_update().clone(), current_cfg).await;
+                }
+
+                res = self.poll_cycle(&channel_url) => { res? }
             }
         }
     }
 
     pub async fn stop(&self) -> anyhow::Result<()> {
-        tracing::info!("stopping listening to {}", &self.cfg.channel_url);
+        let id = self.cfg.read().await.id.clone();
+        tracing::info!("stopping listener {}", id);
         self.shutdown.cancel();
         Ok(())
     }
 
+    pub async fn reconfigure(&self, global_cfg: &GlobalListenerConfig, listener_cfg: ListenerConfig) {
+        tracing::info!("reconfiguring listener {}", listener_cfg.id);
+        *self.cfg.write().await = listener_cfg.merge_with(global_cfg);
+    }
+
     /// Poll URL with wait
     async fn poll_cycle(&self, url: &str) -> anyhow::Result<()> {
+        let interval = self.cfg.read().await.poll_interval;
         self.poll(url).await?;
         sleep(Duration::from_secs(
-            self.cfg.poll_interval.try_into().unwrap(),
+            interval.try_into().unwrap(),
         ))
         .await;
         Ok(())
@@ -78,8 +96,10 @@ impl Listener {
         }
 
         if !new_posts.is_empty() {
+            let webhook_url = self.cfg.read().await.webhook_url.clone()
+                .ok_or(anyhow!("webhook_url is not configured"))?;
             let res = self
-                .send_webhook_retry(&self.cfg.webhook_url, &page.channel, &new_posts, 5)
+                .send_webhook_retry(&webhook_url, &page.channel, &new_posts, 5)
                 .await;
 
             if let Err(e) = res {
@@ -118,13 +138,14 @@ impl Listener {
         new_posts: &[Post],
     ) -> anyhow::Result<reqwest::Response> {
         let payload = WebhookPayload { channel, new_posts };
+        let webhook_secret = self.cfg.read().await.webhook_secret.clone();
 
         let res = self
             .client
             .post(url)
             .header(
                 "x-secret",
-                self.cfg.webhook_secret.clone().unwrap_or("".to_string()),
+                &webhook_secret.clone().unwrap_or("".to_string()),
             )
             .json(&payload)
             .send()

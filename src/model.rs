@@ -104,7 +104,7 @@ impl From<ListenerConfig> for ListenerRow {
             poll_interval: cfg.poll_interval,
             channel_url: cfg.channel_url,
             proxy_list_url: cfg.proxy_list_url,
-            webhook_url: cfg.webhook_url,
+            webhook_url: cfg.webhook_url.expect("webhook_url must be set after validation"),
         }
     }
 }
@@ -117,7 +117,7 @@ impl From<ListenerRow> for ListenerConfig {
             poll_interval: row.poll_interval,
             channel_url: row.channel_url,
             proxy_list_url: row.proxy_list_url,
-            webhook_url: row.webhook_url,
+            webhook_url: Some(row.webhook_url),
             webhook_secret: None,
         }
     }

@@ -4,10 +4,10 @@
 //! when new posts are detected. State is stored in SQLite database.
 
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{Mutex, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
-use config::{Config, ListenerConfig};
+use config::{EnvConfig, GlobalListenerConfig, ListenerConfig};
 use db::Db;
 use listener::Listener;
 
@@ -27,11 +27,11 @@ pub struct Server {
     pub shutdown: CancellationToken,
 
     listeners: Mutex<HashMap<String, Arc<Listener>>>,
-    cfg: Config,
     db: Db,
 
     cmd_tx: mpsc::Sender<ListenerCmd>,
     cmd_rx: Mutex<mpsc::Receiver<ListenerCmd>>,
+    cfg_tx: watch::Sender<GlobalListenerConfig>,
 }
 
 /// Commands for the [Server] to manage listeners
@@ -45,18 +45,20 @@ impl Server {
     ///
     /// Creates SQLite database in data/litehook.db and creates data dir
     /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
-    pub async fn new(cfg: Config) -> anyhow::Result<Self> {
+    pub async fn new() -> anyhow::Result<Self> {
         tracing::info!("initializing");
+        let env = EnvConfig::from_dotenv()?;
         let (cmd_tx, cmd_rx) = mpsc::channel(100);
-        let db = Db::new(&cfg.db_path).await?;
+        let (cfg_tx, _) = watch::channel(GlobalListenerConfig::from_dotenv().unwrap());
+        let db = Db::new(&env.db_path).await?;
 
         Ok(Self {
             shutdown: CancellationToken::new(),
             listeners: Mutex::new(HashMap::new()),
-            cfg,
             db,
             cmd_tx,
             cmd_rx: Mutex::new(cmd_rx),
+            cfg_tx,
         })
     }
 
@@ -65,19 +67,15 @@ impl Server {
     /// Spawns listener local tasks listens to mpsc commands
     /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
-        tracing::info!("adding {} listeners", self.cfg.channels.len());
         // Local set is needed because scraper is !Send
         let local = tokio::task::LocalSet::new();
 
         local
             .run_until(async {
-                for id in &self.cfg.channels {
-                    let listeners = self.db.get_all_listeners().await.unwrap();
-                        for listener in listeners {
-                            if let Err(e) = self.add_listener(listener.into()).await {
-                                tracing::error!("failed to add listener {}: {e}", id);
-                        }
-                    }
+                    for listener in self.db.get_all_listeners().await.unwrap() {
+                        self.add_listener(ListenerConfig::from(listener))
+                            .await
+                            .unwrap();
                 }
 
                 let mut cmd_rx = self.cmd_rx.lock().await;
@@ -127,13 +125,23 @@ impl Server {
         Ok(())
     }
 
-    /// Update a [Listener]
-    ///
-    /// Works by calling [Server::remove_listener] and then [Server::add_listener].
-    /// Maybe can be improved in the future.
+    /// Update [Listener] with a new [ListenerConfig] and [Config]
     pub async fn update_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
-        self.remove_listener(&cfg.id).await?;
-        self.add_listener(cfg).await?;
+        let listener = {
+            let listeners = self.listeners.lock().await;
+            listeners
+                .get(&cfg.id)
+                .ok_or(anyhow::anyhow!("listener not found"))?
+                .clone()
+        };
+
+        let global_cfg = self.cfg_tx.borrow().clone();
+        listener.reconfigure(&global_cfg, cfg.clone()).await;
+
+        // Update db
+        if let Err(e) = self.db.insert_listener(cfg.clone().into()).await {
+            tracing::error!("failed to update listener in db: {e}");
+        }
         Ok(())
     }
 
@@ -147,6 +155,10 @@ impl Server {
         self.db.get_all_listeners().await
     }
 
+    pub async fn update_global_config(&self, cfg: GlobalListenerConfig) {
+        let _ = self.cfg_tx.send(cfg);
+    }
+
     /// Stop all [Listener]s and clear the listeners hashmap.
     async fn stop_all(&self) {
         tracing::info!("stopping all listeners");
@@ -157,11 +169,14 @@ impl Server {
         };
 
         for listener in listeners {
-            self.shutdown_listener(&listener.cfg.id).await;
+            let id = listener.cfg.read().await.id.clone();
+            self.shutdown_listener(&id).await;
         }
     }
 
     async fn spawn_listener(&self, cfg: ListenerConfig) {
+        let cfg = cfg.merge_with(&self.cfg_tx.borrow());
+
         // Check if listenr already exists
         if self.listeners.lock().await.contains_key(&cfg.id) {
             tracing::warn!("listener {} already exists", cfg.id);
@@ -177,15 +192,17 @@ impl Server {
         };
 
         // Add to listeners map
+        let id = listener.cfg.read().await.id.clone();
         self.listeners
             .lock()
             .await
-            .insert(listener.cfg.id.clone(), Arc::clone(&listener));
+            .insert(id, Arc::clone(&listener));
 
         // Start listener
         tokio::task::spawn_local({
             let listener = Arc::clone(&listener);
-            async move { listener.run().await }
+            let global_cfg = self.cfg_tx.subscribe().clone();
+            async move { listener.run(global_cfg).await }
         });
     }
 
