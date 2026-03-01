@@ -175,12 +175,12 @@ impl Server {
         self.db.get_all_listeners().await
     }
 
-    pub async fn health(&self) -> model::Health {
+    pub async fn health(&self) -> anyhow::Result<model::Health> {
         let listeners = self.listeners.lock().await;
-        model::Health {
+        Ok(model::Health {
             ok: true,
             listeners: listeners.len(),
-        }
+        })
     }
 
     /// Stop all [Listener]s and clear the listeners hashmap.

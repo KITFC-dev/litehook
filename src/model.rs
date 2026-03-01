@@ -80,6 +80,8 @@ pub struct TmePage {
     pub posts: Vec<Post>,
 }
 
+/// Health check result
+#[derive(Serialize)]
 pub struct Health {
     pub ok: bool,
     pub listeners: usize,

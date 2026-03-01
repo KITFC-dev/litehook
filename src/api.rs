@@ -9,7 +9,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
 use crate::config::{EnvConfig, ListenerConfig};
-use crate::{Server, model::ListenerRow};
+use crate::{Server, model::{ListenerRow, Health}};
 
 /// Web API and dashboard for managing [Server] listeners.
 ///
@@ -22,6 +22,7 @@ use crate::{Server, model::ListenerRow};
 /// | `GET` | `/listeners/{id}` | [get_listener] |
 /// | `PUT` | `/listeners/{id}` | [update_listener] |
 /// | `DELETE` | `/listeners/{id}` | [remove_listener] |
+/// | `GET` | `/health` | [health] |
 pub struct Api {
     env: EnvConfig,
     router: Router,
@@ -44,6 +45,7 @@ impl Api {
             .route("/listeners/{id}", get(get_listener))
             .route("/listeners/{id}", put(update_listener))
             .route("/listeners/{id}", delete(remove_listener))
+            .route("/health", get(health))
             .fallback_service(ServeDir::new("static"))
             .layer(cors)
             .with_state(Arc::clone(&server));
@@ -126,4 +128,16 @@ pub async fn remove_listener(
     }
 
     StatusCode::OK
+}
+
+pub async fn health(
+    State(server): State<Arc<Server>>
+) -> (StatusCode, Json<Health>) {
+    match server.health().await {
+        Ok(h) => (StatusCode::OK, Json(h)),
+        Err(e) => {
+            tracing::error!("failed to get health: {e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(Health { ok: false, listeners: 0 }))
+        }
+    }
 }
