@@ -4,6 +4,21 @@ const mantle = style.getPropertyValue('--mantle').trim();
 const textColor = style.getPropertyValue('--text-color').trim();
 const accentColor = style.getPropertyValue('--accent-color').trim();
 
+async function health() {
+    try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        const listenersCount = document.getElementById('health-listeners-count');
+        listenersCount.textContent = `Running ${data.listeners} listener${data.listeners !== 1 ? 's' : ''}`;
+        listenersCount.style.color = data.ok ? 'var(--success-color)' : 'var(--error-color)';
+    } catch (err) {
+        const listenersCount = document.getElementById('health-listeners-count');
+        listenersCount.textContent = `Could not connect to the litehook server. Not healthy!`;
+        listenersCount.style.color = 'var(--error-color)';
+        console.error(err);
+    }    
+}
+
 async function fetchListeners() {
     try {
         const res = await fetch('/listeners');
@@ -39,7 +54,10 @@ async function fetchListeners() {
             container.appendChild(card);
         });
     } catch (err) {
-        document.getElementById('listeners-list').textContent = 'Error fetching listeners';
+        const container = document.getElementById('listeners-list');
+        container.textContent = 'Error fetching listeners';
+        container.style.color = 'var(--error-color)';
+
         console.error(err);
     }
 }
@@ -143,5 +161,9 @@ document.getElementById('listeners-container').addEventListener('click', async (
     }
 });
 
-fetchListeners();
-setInterval(fetchListeners, 2500);
+document.addEventListener('DOMContentLoaded', () => {
+    fetchListeners();
+    health();
+    setInterval(fetchListeners, 2500);
+    setInterval(health, 2500);
+});

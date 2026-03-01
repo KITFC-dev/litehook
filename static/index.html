@@ -9,15 +9,23 @@
 </head>
 <body>
     <h1>Litehook Dashboard</h1>
-    <div id="listeners-container">
-        <div id="listeners-header">
-            <h2>Listeners</h2>
-            <button class="listener-control success" data-action="add" data-id="">Add Listener</button>
+    <section id="health">
+        <div id="health-container">
+            <h2 id="health-listeners-count"></h2>
         </div>
-        <div id="listeners-list"></div>
-    </div>
+    </section>
+    <hr>
+    <section id="listeners">
+        <div id="listeners-container">
+            <div id="listeners-header">
+                <h2>Listeners</h2>
+                <button class="listener-control success" data-action="add" data-id="">Add Listener</button>
+            </div>
+            <div id="listeners-list"></div>
+        </div>
+    </section>
 
-    <script src="script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.21/dist/sweetalert2.all.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

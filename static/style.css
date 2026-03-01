@@ -85,6 +85,11 @@ button:hover, .swal-confirm:hover {
     background-color: var(--accent-hover-color);
 }
 
+#health-listeners-count {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
 #listeners-container {
     display: flex;
     flex-direction: column;
