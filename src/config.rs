@@ -16,7 +16,7 @@ pub struct EnvConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct GlobalListenerConfig {
     #[serde(default = "default_interval")]
-    pub poll_interval: i64,
+    pub poll_interval: Option<i64>,
 
     pub webhook_url: Option<String>,
     pub proxy_list_url: Option<String>,
@@ -28,7 +28,7 @@ pub struct ListenerConfig {
     pub id: String,
 
     #[serde(default = "default_interval")]
-    pub poll_interval: i64,
+    pub poll_interval: Option<i64>,
     pub channel_url: String,
     pub proxy_list_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -58,7 +58,7 @@ impl GlobalListenerConfig {
                 .map_err(|_| anyhow::anyhow!("proxy_list_url is not a valid URL: {}", proxy_url))?;
         }
 
-        if self.poll_interval <= 2 {
+        if self.poll_interval.unwrap_or(default_interval().unwrap()) <= 2 {
             anyhow::bail!("poll_interval must be at least 2 seconds");
         }
 
@@ -69,16 +69,16 @@ impl GlobalListenerConfig {
 impl ListenerConfig {
     /// Merge values from [Config]
     pub fn merge_with(mut self, cfg: &GlobalListenerConfig) -> Self {
-        if self.proxy_list_url.is_none() {
+        if self.proxy_list_url.is_none() || self.proxy_list_url.as_deref() == Some("") {
             self.proxy_list_url = cfg.proxy_list_url.clone();
         }
-        if self.webhook_secret.is_none() {
+        if self.webhook_secret.is_none() || self.webhook_secret.as_deref() == Some("") {
             self.webhook_secret = cfg.webhook_secret.clone();
         }
-        if self.poll_interval == default_interval() {
+        if self.poll_interval.is_none() {
             self.poll_interval = cfg.poll_interval;
         }
-        if self.webhook_url.is_none() {
+        if self.webhook_url.is_none() || self.webhook_url.as_deref() == Some("") {
             self.webhook_url = cfg.webhook_url.clone();
         }
 
@@ -101,7 +101,7 @@ impl ListenerConfig {
             None => anyhow::bail!("webhook_url is required for listener {}", self.id),
         }
 
-        if self.poll_interval <= 2 {
+        if self.poll_interval.unwrap_or(default_interval().unwrap()) <= 2 {
             anyhow::bail!(
                 "poll_interval must be at least 2 seconds for listener {}",
                 self.id
@@ -116,8 +116,8 @@ fn default_port() -> u16 {
     4101
 }
 
-fn default_interval() -> i64 {
-    600
+fn default_interval() -> Option<i64> {
+    Some(600)
 }
 
 fn default_db_path() -> String {

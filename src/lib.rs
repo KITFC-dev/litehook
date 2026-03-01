@@ -106,12 +106,13 @@ impl Server {
 
     /// Send an add command to server to create a [Listener].
     pub async fn add_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
+        let cfg = cfg.merge_with(&self.cfg_tx.borrow());
+        self.cmd_tx.send(ListenerCmd::Add(cfg.clone())).await?;
+
         // Add to db
         if let Err(e) = self.db.insert_listener(cfg.clone().into()).await {
             tracing::error!("failed to add listener to db: {e}");
         }
-
-        self.cmd_tx.send(ListenerCmd::Add(cfg)).await?;
         Ok(())
     }
 
@@ -178,8 +179,6 @@ impl Server {
     }
 
     async fn spawn_listener(&self, cfg: ListenerConfig) {
-        let cfg = cfg.merge_with(&self.cfg_tx.borrow());
-
         // Check if listenr already exists
         if self.listeners.lock().await.contains_key(&cfg.id) {
             tracing::warn!("listener {} already exists", cfg.id);

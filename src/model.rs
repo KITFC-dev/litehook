@@ -101,12 +101,12 @@ impl From<ListenerConfig> for ListenerRow {
         Self {
             id: cfg.id,
             active: true,
-            poll_interval: cfg.poll_interval,
+            poll_interval: cfg.poll_interval.expect("valid poll interval"),
             channel_url: cfg.channel_url,
             proxy_list_url: cfg.proxy_list_url,
             webhook_url: cfg
                 .webhook_url
-                .expect("webhook_url must be set after validation"),
+                .expect("valid webhook url"),
         }
     }
 }
@@ -116,7 +116,7 @@ impl From<ListenerRow> for ListenerConfig {
     fn from(row: ListenerRow) -> Self {
         Self {
             id: row.id,
-            poll_interval: row.poll_interval,
+            poll_interval: Some(row.poll_interval),
             channel_url: row.channel_url,
             proxy_list_url: row.proxy_list_url,
             webhook_url: Some(row.webhook_url),

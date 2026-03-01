@@ -76,7 +76,7 @@ impl Listener {
 
     /// Poll URL with wait
     async fn poll_cycle(&self, url: &str) -> anyhow::Result<()> {
-        let interval = self.cfg.read().await.poll_interval;
+        let interval = self.cfg.read().await.poll_interval.unwrap_or(600);
         self.poll(url).await?;
         sleep(Duration::from_secs(interval.try_into().unwrap())).await;
         Ok(())
