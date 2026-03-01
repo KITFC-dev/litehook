@@ -80,6 +80,11 @@ pub struct TmePage {
     pub posts: Vec<Post>,
 }
 
+pub struct Health {
+    pub ok: bool,
+    pub listeners: usize,
+}
+
 /// Convert PostRow to Post
 impl From<PostRow> for Post {
     fn from(row: PostRow) -> Self {

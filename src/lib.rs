@@ -175,8 +175,12 @@ impl Server {
         self.db.get_all_listeners().await
     }
 
-    pub async fn update_global_config(&self, cfg: GlobalListenerConfig) {
-        let _ = self.cfg_tx.send(cfg);
+    pub async fn health(&self) -> model::Health {
+        let listeners = self.listeners.lock().await;
+        model::Health {
+            ok: true,
+            listeners: listeners.len(),
+        }
     }
 
     /// Stop all [Listener]s and clear the listeners hashmap.
