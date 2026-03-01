@@ -72,16 +72,11 @@ impl Server {
         local
             .run_until(async {
                 for id in &self.cfg.channels {
-                    let test_cfg = ListenerConfig {
-                        id: id.clone(),
-                        poll_interval: self.cfg.poll_interval,
-                        channel_url: format!("https://t.me/s/{}", id),
-                        proxy_list_url: self.cfg.proxy_list_url.clone(),
-                        webhook_url: self.cfg.webhook_url.clone(),
-                        webhook_secret: self.cfg.webhook_secret.clone(),
-                    };
-                    if let Err(e) = self.add_listener(test_cfg).await {
-                        tracing::error!("failed to add initial listener {}: {e}", id);
+                    let listeners = self.db.get_all_listeners().await.unwrap();
+                        for listener in listeners {
+                            if let Err(e) = self.add_listener(listener.into()).await {
+                                tracing::error!("failed to add listener {}: {e}", id);
+                        }
                     }
                 }
 
@@ -110,6 +105,11 @@ impl Server {
 
     /// Send an add command to server to create a [Listener].
     pub async fn add_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
+        // Add to db
+        if let Err(e) = self.db.insert_listener(cfg.clone().into()).await {
+            tracing::error!("failed to add listener to db: {e}");
+        }
+
         self.cmd_tx.send(ListenerCmd::Add(cfg)).await?;
         Ok(())
     }
@@ -119,6 +119,11 @@ impl Server {
         self.cmd_tx
             .send(ListenerCmd::Remove(id.to_string()))
             .await?;
+
+        // Remove from db
+        if let Err(e) = self.db.delete_listener(id).await {
+            tracing::error!("failed to delete listener from db {id}: {e}");
+        }
         Ok(())
     }
 
@@ -143,8 +148,6 @@ impl Server {
     }
 
     /// Stop all [Listener]s and clear the listeners hashmap.
-    ///
-    /// This has double locking, but its alright for now.
     async fn stop_all(&self) {
         tracing::info!("stopping all listeners");
 
@@ -184,11 +187,6 @@ impl Server {
             let listener = Arc::clone(&listener);
             async move { listener.run().await }
         });
-
-        // Add to db
-        if let Err(e) = self.db.insert_listener(listener.cfg.clone().into()).await {
-            tracing::error!("failed to add listener to db: {e}");
-        }
     }
 
     async fn shutdown_listener(&self, id: &str) {
@@ -202,11 +200,6 @@ impl Server {
         if let Some(listener) = listener {
             if let Err(e) = listener.stop().await {
                 tracing::error!("failed to stop listener {id}: {e}");
-            }
-
-            // Remove from db
-            if let Err(e) = self.db.delete_listener(id).await {
-                tracing::error!("failed deleting listener from db {id}: {e}");
             }
         } else {
             tracing::warn!("listener not found for channel {}", id);

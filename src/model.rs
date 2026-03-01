@@ -108,3 +108,17 @@ impl From<ListenerConfig> for ListenerRow {
         }
     }
 }
+
+/// Convert ListenerRow to ListenerConfig
+impl From<ListenerRow> for ListenerConfig {
+    fn from(row: ListenerRow) -> Self {
+        Self {
+            id: row.id,
+            poll_interval: row.poll_interval,
+            channel_url: row.channel_url,
+            proxy_list_url: row.proxy_list_url,
+            webhook_url: row.webhook_url,
+            webhook_secret: None,
+        }
+    }
+}
