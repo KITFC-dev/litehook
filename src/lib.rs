@@ -92,8 +92,8 @@ impl Server {
                             channel_url: format!("https://t.me/s/{}", c),
                             ..Default::default()
                         })
-                            .await
-                            .unwrap();
+                        .await
+                        .unwrap();
                     }
                 }
 

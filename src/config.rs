@@ -24,7 +24,7 @@ pub struct GlobalListenerConfig {
     pub webhook_secret: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListenerConfig {
     pub id: String,
 
@@ -43,14 +43,8 @@ impl EnvConfig {
     }
 
     pub fn validate(&self, global_cfg: &GlobalListenerConfig) -> anyhow::Result<()> {
-        if self.port < 1 || self.port >= 65535 {
-            anyhow::bail!("port must be between 1 and 65535");
-        }
-
         if self.channels.is_some() && global_cfg.webhook_url.is_none() {
-            anyhow::bail!(
-                "WEBHOOK_URL is required when CHANNELS is set"
-            );
+            anyhow::bail!("WEBHOOK_URL is required when CHANNELS is set");
         }
         Ok(())
     }
@@ -123,19 +117,6 @@ impl ListenerConfig {
         }
 
         Ok(())
-    }
-}
-
-impl Default for ListenerConfig {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            poll_interval: None,
-            channel_url: String::new(),
-            proxy_list_url: None,
-            webhook_url: None,
-            webhook_secret: None,
-        }
     }
 }
 
