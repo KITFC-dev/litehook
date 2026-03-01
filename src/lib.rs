@@ -49,7 +49,10 @@ impl Server {
         tracing::info!("initializing");
         let env = EnvConfig::from_dotenv()?;
         let (cmd_tx, cmd_rx) = mpsc::channel(100);
-        let (cfg_tx, _) = watch::channel(GlobalListenerConfig::from_dotenv().unwrap());
+        let global_cfg = GlobalListenerConfig::from_dotenv()?;
+        global_cfg.validate()?;
+        let (cfg_tx, _) = watch::channel(global_cfg);
+
         let db = Db::new(&env.db_path).await?;
 
         Ok(Self {

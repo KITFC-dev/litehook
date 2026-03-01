@@ -22,6 +22,7 @@ pub struct Listener {
 
 impl Listener {
     pub async fn new(cfg: ListenerConfig, db: Db) -> anyhow::Result<Self> {
+        cfg.validate()?;
         tracing::info!("initializing listener {}", cfg.id);
         let client = Self::create_client(&cfg.proxy_list_url).await?;
         Ok(Self {
