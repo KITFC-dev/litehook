@@ -9,7 +9,10 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
 use crate::config::{EnvConfig, ListenerConfig};
-use crate::{Server, model::{ListenerRow, Health}};
+use crate::{
+    Server,
+    model::{Health, ListenerRow},
+};
 
 /// Web API and dashboard for managing [Server] listeners.
 ///
@@ -130,14 +133,18 @@ pub async fn remove_listener(
     StatusCode::OK
 }
 
-pub async fn health(
-    State(server): State<Arc<Server>>
-) -> (StatusCode, Json<Health>) {
+pub async fn health(State(server): State<Arc<Server>>) -> (StatusCode, Json<Health>) {
     match server.health().await {
         Ok(h) => (StatusCode::OK, Json(h)),
         Err(e) => {
             tracing::error!("failed to get health: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(Health { ok: false, listeners: 0 }))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Health {
+                    ok: false,
+                    listeners: 0,
+                }),
+            )
         }
     }
 }
