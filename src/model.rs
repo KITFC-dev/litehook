@@ -104,9 +104,7 @@ impl From<ListenerConfig> for ListenerRow {
             poll_interval: cfg.poll_interval.expect("valid poll interval"),
             channel_url: cfg.channel_url,
             proxy_list_url: cfg.proxy_list_url,
-            webhook_url: cfg
-                .webhook_url
-                .expect("valid webhook url"),
+            webhook_url: cfg.webhook_url.expect("valid webhook url"),
         }
     }
 }

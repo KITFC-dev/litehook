@@ -1,9 +1,5 @@
-use anyhow::Result;
-use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::types::Json;
-use std::path::Path;
-use tokio::fs;
 
 use crate::model::{ListenerRow, Post, PostRow};
 
@@ -11,20 +7,20 @@ use crate::model::{ListenerRow, Post, PostRow};
 #[derive(Clone)]
 pub struct Db {
     /// SQLite connection pool
-    pub pool: SqlitePool,
+    pub pool: sqlx::SqlitePool,
 }
 
 impl Db {
     /// Create a new instance of [Db].
     ///
     /// Creates tables if they don't exist.
-    pub async fn new(path: &str) -> Result<Self> {
+    pub async fn new(path: &str) -> anyhow::Result<Self> {
         // Ensure path exists
-        let path_ = Path::new(path);
+        let path_ = std::path::Path::new(path);
         if let Some(parent) = path_.parent() {
-            fs::create_dir_all(parent).await?;
+            tokio::fs::create_dir_all(parent).await?;
         }
-        fs::OpenOptions::new()
+        tokio::fs::OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(false)
@@ -77,7 +73,7 @@ impl Db {
     }
 
     /// Insert a post into the database
-    pub async fn insert_post(&self, post: &Post) -> Result<()> {
+    pub async fn insert_post(&self, post: &Post) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT OR REPLACE INTO posts 
             (id, author, text, media, reactions, views, date)
@@ -97,7 +93,7 @@ impl Db {
     }
 
     /// Select a post from the database
-    pub async fn get_posts(&self, id: &str) -> Result<Option<Post>> {
+    pub async fn get_posts(&self, id: &str) -> anyhow::Result<Option<Post>> {
         let row: Option<PostRow> = sqlx::query_as(
             "SELECT id, author, text, media, reactions, views, date 
             FROM posts WHERE id = ?",
@@ -109,7 +105,7 @@ impl Db {
         Ok(row.map(Into::into))
     }
 
-    pub async fn insert_listener(&self, cfg: ListenerRow) -> Result<()> {
+    pub async fn insert_listener(&self, cfg: ListenerRow) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT OR REPLACE INTO listeners
             (id, active, poll_interval, channel_url, proxy_list_url, webhook_url)
@@ -127,7 +123,7 @@ impl Db {
         Ok(())
     }
 
-    pub async fn get_listener(&self, id: &str) -> Result<Option<ListenerRow>> {
+    pub async fn get_listener(&self, id: &str) -> anyhow::Result<Option<ListenerRow>> {
         let row: Option<ListenerRow> = sqlx::query_as(
             "SELECT id, active, poll_interval, channel_url, proxy_list_url, webhook_url
             FROM listeners WHERE id = ?",
@@ -139,7 +135,7 @@ impl Db {
         Ok(row)
     }
 
-    pub async fn get_all_listeners(&self) -> Result<Vec<ListenerRow>> {
+    pub async fn get_all_listeners(&self) -> anyhow::Result<Vec<ListenerRow>> {
         let rows: Vec<ListenerRow> = sqlx::query_as(
             "SELECT id, active, poll_interval, channel_url, proxy_list_url, webhook_url
             FROM listeners",
@@ -150,7 +146,7 @@ impl Db {
         Ok(rows)
     }
 
-    pub async fn delete_listener(&self, id: &str) -> Result<()> {
+    pub async fn delete_listener(&self, id: &str) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM listeners WHERE id = ?")
             .bind(id)
             .execute(&self.pool)

@@ -8,15 +8,14 @@ use tokio::sync::{Mutex, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 use config::{EnvConfig, GlobalListenerConfig, ListenerConfig};
-use db::Db;
 use listener::Listener;
 
 pub mod api;
 pub mod config;
-mod db;
+pub mod db;
 pub mod listener;
-mod model;
-mod parser;
+pub mod model;
+pub mod parser;
 
 /// Core server state for the Litehook server.
 ///
@@ -27,7 +26,7 @@ pub struct Server {
     pub shutdown: CancellationToken,
 
     listeners: Mutex<HashMap<String, Arc<Listener>>>,
-    db: Db,
+    db: db::Db,
 
     cmd_tx: mpsc::Sender<ListenerCmd>,
     cmd_rx: Mutex<mpsc::Receiver<ListenerCmd>>,
@@ -53,7 +52,7 @@ impl Server {
         global_cfg.validate()?;
         let (cfg_tx, _) = watch::channel(global_cfg);
 
-        let db = Db::new(&env.db_path).await?;
+        let db = db::Db::new(&env.db_path).await?;
 
         Ok(Self {
             shutdown: CancellationToken::new(),
@@ -129,7 +128,7 @@ impl Server {
         Ok(())
     }
 
-    /// Update [Listener] with a new [ListenerConfig] and [Config]
+    /// Update [Listener] with a new [ListenerConfig] and [EnvConfig]
     pub async fn update_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
         let listener = {
             let listeners = self.listeners.lock().await;

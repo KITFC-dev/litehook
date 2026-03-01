@@ -1,6 +1,4 @@
-use anyhow::{Ok, Result};
 use html_to_markdown_rs::convert;
-use reqwest::Client;
 use scraper::{ElementRef, Html, Selector};
 use std::sync::LazyLock as Lazy;
 
@@ -59,11 +57,11 @@ impl ElementRefExt for ElementRef<'_> {
     }
 }
 
-pub async fn fetch_html(client: &Client, url: &str) -> Result<String> {
+pub async fn fetch_html(client: &reqwest::Client, url: &str) -> anyhow::Result<String> {
     Ok(client.get(url).send().await?.text().await?)
 }
 
-fn parse_counters(container: ElementRef<'_>) -> Result<ChannelCounters> {
+fn parse_counters(container: ElementRef<'_>) -> anyhow::Result<ChannelCounters> {
     let mut data = ChannelCounters {
         subscribers: None,
         photos: None,
@@ -98,7 +96,7 @@ fn parse_counters(container: ElementRef<'_>) -> Result<ChannelCounters> {
     Ok(data)
 }
 
-fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<PostReaction>> {
+fn parse_reactions(container: ElementRef<'_>) -> anyhow::Result<Vec<PostReaction>> {
     let mut data: Vec<PostReaction> = Vec::new();
 
     for reaction in container.select(&REACTION_SEL) {
@@ -122,7 +120,7 @@ fn parse_reactions(container: ElementRef<'_>) -> Result<Vec<PostReaction>> {
     Ok(data)
 }
 
-fn parse_media(container: ElementRef<'_>) -> Result<Option<String>> {
+fn parse_media(container: ElementRef<'_>) -> anyhow::Result<Option<String>> {
     if let Some(style) = container.value().attr("style")
         && let Some(start) = style.find("url('")
     {
@@ -135,7 +133,7 @@ fn parse_media(container: ElementRef<'_>) -> Result<Option<String>> {
     Ok(None)
 }
 
-fn parse_channel(channel: ElementRef<'_>) -> Result<Channel> {
+fn parse_channel(channel: ElementRef<'_>) -> anyhow::Result<Channel> {
     let id = channel
         .select_first(&ID_SEL)
         .map(|v| v.whole_text())
@@ -170,7 +168,7 @@ fn parse_channel(channel: ElementRef<'_>) -> Result<Channel> {
     Ok(data)
 }
 
-async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
+async fn parse_post(post: ElementRef<'_>) -> anyhow::Result<Post> {
     let id = post
         .select_first(&MSG_SEL)
         .expect("post not found")
@@ -220,7 +218,7 @@ async fn parse_post(post: ElementRef<'_>) -> Result<Post> {
 /// Parses the channel information, all visible posts on page (no scrolling),
 ///
 /// Returns [TmePage] or None if page is invalid
-pub async fn parse_page(html: &str) -> Result<Option<TmePage>> {
+pub async fn parse_page(html: &str) -> anyhow::Result<Option<TmePage>> {
     let document = Html::parse_document(html);
     let mut posts = Vec::new();
 

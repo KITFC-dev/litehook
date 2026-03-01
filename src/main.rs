@@ -1,11 +1,11 @@
-use anyhow::{Ok, Result};
 use litehook::{Server, api::Api};
-use tracing_subscriber::fmt::time::ChronoLocal;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S".to_string()))
+        .with_timer(tracing_subscriber::fmt::time::ChronoLocal::new(
+            "%Y-%m-%d %H:%M:%S".to_string(),
+        ))
         .with_max_level(tracing::Level::INFO)
         .with_level(true)
         .with_target(false)

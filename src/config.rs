@@ -1,4 +1,3 @@
-use anyhow::Result;
 use serde::Deserialize;
 use url::Url;
 
@@ -36,14 +35,14 @@ pub struct ListenerConfig {
 }
 
 impl EnvConfig {
-    pub fn from_dotenv() -> Result<Self> {
+    pub fn from_dotenv() -> anyhow::Result<Self> {
         dotenvy::dotenv().ok();
         Ok(envy::from_env()?)
     }
 }
 
 impl GlobalListenerConfig {
-    pub fn from_dotenv() -> Result<Self> {
+    pub fn from_dotenv() -> anyhow::Result<Self> {
         Ok(envy::from_env()?)
     }
 
@@ -67,7 +66,7 @@ impl GlobalListenerConfig {
 }
 
 impl ListenerConfig {
-    /// Merge values from [Config]
+    /// Merge values from [EnvConfig]
     pub fn merge_with(mut self, cfg: &GlobalListenerConfig) -> Self {
         if self.proxy_list_url.is_none() || self.proxy_list_url.as_deref() == Some("") {
             self.proxy_list_url = cfg.proxy_list_url.clone();

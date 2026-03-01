@@ -1,9 +1,7 @@
 use anyhow::anyhow;
 use rand::prelude::IndexedRandom;
-use reqwest::Client;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use tokio::sync::watch;
+use tokio::sync::{RwLock, watch};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
@@ -16,7 +14,7 @@ pub struct Listener {
     pub cfg: Arc<RwLock<ListenerConfig>>,
 
     db: Db,
-    client: Client,
+    client: reqwest::Client,
     shutdown: CancellationToken,
 }
 
