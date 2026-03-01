@@ -14,7 +14,7 @@ pub struct Listener {
     pub cfg: Arc<RwLock<ListenerConfig>>,
 
     db: Db,
-    client: reqwest::Client,
+    client: RwLock<reqwest::Client>,
     shutdown: CancellationToken,
 }
 
@@ -26,7 +26,7 @@ impl Listener {
         Ok(Self {
             cfg: Arc::new(RwLock::new(cfg)),
             db,
-            client,
+            client: RwLock::new(client),
             shutdown: CancellationToken::new(),
         })
     }
@@ -72,18 +72,27 @@ impl Listener {
         *self.cfg.write().await = listener_cfg.merge_with(global_cfg);
     }
 
-    /// Poll URL with wait
+    /// Poll URL with sleep
     async fn poll_cycle(&self, url: &str) -> anyhow::Result<()> {
         let interval = self.cfg.read().await.poll_interval.unwrap_or(600);
-        self.poll(url).await?;
-        sleep(Duration::from_secs(interval.try_into().unwrap())).await;
+        match self.poll(url).await {
+            Ok(_) => {}
+            Err(e) => {
+                tracing::warn!("poll failed, retrying: {e}");
+                let proxy_list_url = self.cfg.read().await.proxy_list_url.clone();
+                *self.client.write().await = Self::create_client(&proxy_list_url).await?;
+                self.poll(url).await?;
+            }
+        }
+        sleep(Duration::from_secs(interval.try_into().unwrap_or(600))).await;
         Ok(())
     }
 
     /// Poll URL, parses the channel info and posts,
     /// stores state in database, and sends webhook notifications.
     async fn poll(&self, url: &str) -> anyhow::Result<()> {
-        let html = parser::fetch_html(&self.client, url).await?;
+        let client = self.client.read().await;
+        let html = parser::fetch_html(&client, url).await?;
         let page = match parser::parse_page(&html).await? {
             Some(p) => p,
             None => return Err(anyhow!("invalid channel: {}", url)),
@@ -150,6 +159,8 @@ impl Listener {
 
         let res = self
             .client
+            .read()
+            .await
             .post(url)
             .header(
                 "x-secret",
