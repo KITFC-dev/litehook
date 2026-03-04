@@ -107,7 +107,7 @@ impl From<ListenerConfig> for ListenerRow {
     fn from(cfg: ListenerConfig) -> Self {
         Self {
             id: cfg.id,
-            active: true,
+            active: false,
             poll_interval: cfg.poll_interval.expect("valid poll interval"),
             channel_url: cfg.channel_url,
             proxy_list_url: cfg.proxy_list_url,

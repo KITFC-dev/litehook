@@ -35,7 +35,7 @@ async function fetchListeners() {
                 <div class="card-header">
                     <h3 class="listener-id">${listener.id}</h3>
                     <div class="listener-tags">
-                        <span class="listener-tag">${listener.active ? 'Active' : 'Inactive'}</span>
+                        <span class="listener-tag">${listener.active ? 'Running' : 'Not Running'}</span>
                         <span class="listener-tag">Interval: ${listener.poll_interval} s</span>
                     </div>
                 </div>

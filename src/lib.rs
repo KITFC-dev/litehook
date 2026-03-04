@@ -173,12 +173,25 @@ impl Server {
 
     /// Get a [Listener] by id from the database
     pub async fn get_listener(&self, id: &str) -> anyhow::Result<Option<model::ListenerRow>> {
-        self.db.get_listener(id).await
+        let mut res = match self.db.get_listener(id).await? {
+            Some(r) => r,
+            None => return Ok(None),
+        };
+
+        res.active = self.check_listener_running(id).await;
+        Ok(Some(res))
     }
 
     /// Get all [Listener]s from the database
     pub async fn get_all_listeners(&self) -> anyhow::Result<Vec<model::ListenerRow>> {
-        self.db.get_all_listeners().await
+        let mut listeners = self.db.get_all_listeners().await?;
+        let running = self.listeners.lock().await;
+
+        for l in listeners.iter_mut() {
+            l.active = running.contains_key(&l.id);
+        }
+
+        Ok(listeners)
     }
 
     pub async fn health(&self) -> anyhow::Result<model::Health> {
