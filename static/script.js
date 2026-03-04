@@ -46,13 +46,22 @@ async function fetchListeners() {
                 </div>
                 <div class="listener-footer">
                     <h4>Controls</h4>
-                    <button class="listener-control error" data-action="delete" data-id="${listener.id}">Delete</button>
-                    <button class="listener-control info" data-action="edit" data-id="${listener.id}">Edit</button>
+                    <div class="listener-controls">
+                        <button class="listener-control info" data-action="edit" data-id="${listener.id}">
+                            <i data-lucide="pencil"></i> Edit
+                        </button>
+                        <button class="listener-control error" data-action="delete" data-id="${listener.id}">
+                            <i data-lucide="trash"></i> Delete
+                        </button>
+                    </div>
                 </div>
             `;
 
             container.appendChild(card);
         });
+        
+        // Call after html is added
+        lucide.createIcons();
     } catch (err) {
         const container = document.getElementById('listeners-list');
         container.textContent = 'Error fetching listeners';

@@ -72,6 +72,9 @@ hr {
 }
 
 button, .swal-confirm {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     background-color: var(--accent-color);
     color: var(--bg-color);
     padding: 10px 20px;
@@ -113,6 +116,16 @@ button:hover, .swal-confirm:hover {
     color: var(--text-color);
     padding: 20px;
     border-radius: 5px;
+}
+
+.listener-controls {
+    display: flex;
+    gap: 8px;
+}
+
+svg {
+    width: 16px;
+    height: 16px;
 }
 
 .card-header {
