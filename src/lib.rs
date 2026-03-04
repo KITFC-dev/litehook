@@ -165,6 +165,12 @@ impl Server {
         Ok(())
     }
 
+    // Check if the [Listener] is running.
+    pub async fn check_listener_running(&self, id: &str) -> bool {
+        let listeners = self.listeners.lock().await;
+        listeners.contains_key(id)
+    }
+
     /// Get a [Listener] by id from the database
     pub async fn get_listener(&self, id: &str) -> anyhow::Result<Option<model::ListenerRow>> {
         self.db.get_listener(id).await
