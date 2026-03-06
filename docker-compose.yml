@@ -2,8 +2,12 @@ services:
   litehook:
     image: kitfc/litehook:latest
     container_name: litehook
+    ports:
+      # Or set your own port that you specified in PORT
+      - "4101:4101"
     volumes:
-      - ./data:/data
+      - ./data:/data:rw
+      - ./static:/static:ro
     env_file:
       - .env
     restart: unless-stopped
