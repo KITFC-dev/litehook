@@ -28,13 +28,10 @@ Dashboard features web UI with a [catppuccin](https://catppuccin.com/) pallete.
 
 ### Running in Docker
 
-1. Build the docker image with:
+> [!NOTE]
+> Only ARM64 and x86_64 architectures are supported
 
-    ```bash
-    docker compose build
-    ```
-
-2. Run the docker container with:
+1. Pull and run the docker image with:
 
     ```bash
     docker compose up -d
