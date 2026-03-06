@@ -1,6 +1,6 @@
 services:
   litehook:
-    build: .
+    image: kitfc/litehook:latest
     container_name: litehook
     volumes:
       - ./data:/data
