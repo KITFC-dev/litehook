@@ -2,7 +2,22 @@
 
 ![Litehook Thumbnail](https://10ku.net/litehook/thumbnail.png)
 
-Litehook is an async and lightweight tool that can monitor multiple public Telegram channels and send webhooks on new posts.
+Litehook is a self-hosted Telegram scraper tool and webhook server for monitoring multiple public Telegram channels. It sends HTTP webhooks for new posts, supports media downloading, proxies, and Docker deployment, and includes a lightweight Rust web dashboard.
+
+## Quick start
+
+1. Copy repository with:
+
+    ```bash
+    git clone https://github.com/KITFC-dev/litehook.git
+    cd litehook
+    ```
+
+2. Run the server with:
+
+    ```bash
+    cargo run
+    ```
 
 ## Features
 
