@@ -1,10 +1,9 @@
 use anyhow::anyhow;
 use std::sync::Arc;
-use tokio::sync::{RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
-use crate::db::Db;
 use crate::parser;
 
 use super::TelegramScraperConfig;
@@ -12,19 +11,19 @@ use super::TelegramScraperConfig;
 pub struct TelegramScraper {
     pub cfg: Arc<RwLock<TelegramScraperConfig>>,
 
-    db: Db,
+    tx: mpsc::Sender<String>,
     client: RwLock<reqwest::Client>,
     shutdown: CancellationToken,
 }
 
 impl TelegramScraper {
-    pub async fn new(cfg: TelegramScraperConfig, db: Db) -> anyhow::Result<Self> {
+    pub async fn new(cfg: TelegramScraperConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
         //TODO: cfg.validate()?;
         tracing::info!("initializing listener {}", cfg.id);
         let client = Self::create_client().await?;
         Ok(Self {
             cfg: Arc::new(RwLock::new(cfg)),
-            db,
+            tx,
             client: RwLock::new(client),
             shutdown: CancellationToken::new(),
         })
@@ -79,19 +78,21 @@ impl TelegramScraper {
             Some(p) => p,
             None => return Err(anyhow!("invalid channel: {}", url)),
         };
-        let mut new_posts = Vec::new();
+        // TODO: use event handler for this
+        // TODO: send event to event handler
+        // let mut new_posts = Vec::new();
 
-        for post in &page.posts {
-            if self.db.get_posts(&post.id).await?.is_none() {
-                tracing::info!("new post: {}", post.id);
-                self.db.insert_post(post).await?;
-                new_posts.push(post.clone());
-            }
-        }
+        // for post in &page.posts {
+        //     if self.db.get_posts(&post.id).await?.is_none() {
+        //         tracing::info!("new post: {}", post.id);
+        //         self.db.insert_post(post).await?;
+        //         new_posts.push(post.clone());
+        //     }
+        // }
 
-        if !new_posts.is_empty() {
-            tracing::info!("new posts: {}", new_posts.len());
-        }
+        // if !new_posts.is_empty() {
+        //     tracing::info!("new posts: {}", new_posts.len());
+        // }
 
         Ok(())
     }

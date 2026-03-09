@@ -1,6 +1,6 @@
 use tokio::sync::{mpsc};
-use crate::db::Db;
-use crate::sources::Source;
+use serde::{Deserialize};
+use crate::sources::{Source, SourceConfig};
 
 use self::client::TelegramClient;
 use self::scraper::TelegramScraper;
@@ -13,12 +13,7 @@ pub enum TelegramSourceKind {
     Client(TelegramClient)
 }
 
-pub enum SourceConfig {
-    TelegramScraper(TelegramScraperConfig),
-    TelegramClient(TelegramClientConfig),
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TelegramScraperConfig {
     pub id: String,
     pub channel_url: String,
@@ -27,6 +22,7 @@ pub struct TelegramScraperConfig {
     pub proxy_list_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
 pub struct TelegramClientConfig {
     pub id: String,
     pub api_id: i32,
@@ -35,45 +31,50 @@ pub struct TelegramClientConfig {
     pub channels: Vec<TelegramChannelConfig>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
 pub struct TelegramChannelConfig {
     pub id: i64,
     pub webhook_url: String,
 }
 
 pub struct TelegramSource {
-    kind: TelegramSourceKind
+    kind: TelegramSourceKind,
+    tx: mpsc::Sender<String>,
 }
 
 impl TelegramSource {
-    pub async fn new(cfg: SourceConfig, db: Db) -> anyhow::Result<Self> {
-        let kind = match cfg {
-            // Scraper
-            SourceConfig::TelegramScraper(cfg) => {
-                TelegramSourceKind::Scraper(TelegramScraper::new(cfg, db).await?)
+    pub async fn new(cfg: SourceConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
+        let kind = match cfg.kind.as_str() {
+            "telegram_scraper" => {
+                let cfg: TelegramScraperConfig = serde_json::from_value(cfg.raw)?;
+                TelegramSourceKind::Scraper(TelegramScraper::new(cfg, tx.clone()).await?)
             }
-
-            // Client
-            SourceConfig::TelegramClient(cfg) => {
-                TelegramSourceKind::Client(TelegramClient::new(cfg).await?)
+            "telegram_client" => {
+                let cfg: TelegramClientConfig = serde_json::from_value(cfg.raw)?;
+                TelegramSourceKind::Client(TelegramClient::new(cfg, tx.clone()).await?)
             }
+            other => anyhow::bail!("unknown kind: {other}"),
         };
 
-        Ok(Self { kind })
+        Ok(Self { kind, tx })
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl Source for TelegramSource {
     fn name(&self) -> &'static str { 
         "telegram"
     }
 
     #[allow(unused)]
-    async fn run(&self, tx: mpsc::Sender<String>) -> anyhow::Result<()> {
-        todo!()
+    async fn run(&self) -> anyhow::Result<()> {
+        match &self.kind {
+            TelegramSourceKind::Scraper(scraper) => scraper.run().await,
+            TelegramSourceKind::Client(client) => client.run().await,
+        }
     }
 
     async fn stop(&self) {
-        todo!()
+        
     }
 }

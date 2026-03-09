@@ -1,21 +1,24 @@
-use std::sync::Arc;
+use tokio::sync::{mpsc};
 use tokio::sync::{RwLock};
 use tokio_util::sync::CancellationToken;
 
+use crate::Arc;
 use super::TelegramClientConfig;
 
 pub struct TelegramClient {
     pub cfg: Arc<RwLock<TelegramClientConfig>>,
+    tx: mpsc::Sender<String>,
 
     shutdown: CancellationToken,
 }
 
 impl TelegramClient {
-    pub async fn new(cfg: TelegramClientConfig) -> anyhow::Result<Self> {
+    pub async fn new(cfg: TelegramClientConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
         //TODO: cfg.validate()?;
         tracing::info!("initializing listener {}", cfg.id);
         Ok(Self {
             cfg: Arc::new(RwLock::new(cfg)),
+            tx,
             shutdown: CancellationToken::new(),
         })
     }
