@@ -16,6 +16,7 @@ pub mod db;
 pub mod listener;
 pub mod model;
 pub mod parser;
+pub mod sources;
 
 /// Core server state for the Litehook server.
 ///
