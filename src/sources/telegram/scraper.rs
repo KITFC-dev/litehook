@@ -11,6 +11,7 @@ use super::TelegramScraperConfig;
 pub struct TelegramScraper {
     pub cfg: Arc<RwLock<TelegramScraperConfig>>,
 
+    #[allow(unused)]
     tx: mpsc::Sender<String>,
     client: RwLock<reqwest::Client>,
     shutdown: CancellationToken,
@@ -74,7 +75,7 @@ impl TelegramScraper {
     async fn poll(&self, url: &str) -> anyhow::Result<()> {
         let client = self.client.read().await;
         let html = parser::fetch_html(&client, url).await?;
-        let page = match parser::parse_page(&html).await? {
+        let _page = match parser::parse_page(&html).await? {
             Some(p) => p,
             None => return Err(anyhow!("invalid channel: {}", url)),
         };

@@ -1,16 +1,16 @@
-use tokio::sync::{mpsc};
-use serde::{Deserialize};
 use crate::sources::{Source, SourceConfig};
+use serde::Deserialize;
+use tokio::sync::mpsc;
 
 use self::client::TelegramClient;
 use self::scraper::TelegramScraper;
 
-pub mod scraper;
 pub mod client;
+pub mod scraper;
 
 pub enum TelegramSourceKind {
     Scraper(TelegramScraper),
-    Client(TelegramClient)
+    Client(TelegramClient),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -39,6 +39,8 @@ pub struct TelegramChannelConfig {
 
 pub struct TelegramSource {
     kind: TelegramSourceKind,
+
+    #[allow(unused)]
     tx: mpsc::Sender<String>,
 }
 
@@ -62,7 +64,7 @@ impl TelegramSource {
 
 #[async_trait::async_trait(?Send)]
 impl Source for TelegramSource {
-    fn name(&self) -> &'static str { 
+    fn name(&self) -> &'static str {
         "telegram"
     }
 
@@ -74,7 +76,5 @@ impl Source for TelegramSource {
         }
     }
 
-    async fn stop(&self) {
-        
-    }
+    async fn stop(&self) {}
 }

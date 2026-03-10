@@ -2,7 +2,7 @@ pub mod telegram;
 
 pub struct SourceConfig {
     pub kind: String,
-    pub raw:  serde_json::Value,
+    pub raw: serde_json::Value,
 }
 
 /// Source trait

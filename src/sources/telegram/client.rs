@@ -1,12 +1,14 @@
-use tokio::sync::{mpsc};
-use tokio::sync::{RwLock};
+use tokio::sync::RwLock;
+use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::Arc;
 use super::TelegramClientConfig;
+use crate::Arc;
 
 pub struct TelegramClient {
     pub cfg: Arc<RwLock<TelegramClientConfig>>,
+
+    #[allow(unused)]
     tx: mpsc::Sender<String>,
 
     shutdown: CancellationToken,
