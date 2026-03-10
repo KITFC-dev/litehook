@@ -9,13 +9,17 @@ use tokio_util::sync::CancellationToken;
 
 use config::{EnvConfig, GlobalListenerConfig, ListenerConfig};
 use listener::Listener;
+use events::EventHandler;
+
+use crate::sources::telegram::TelegramScraperConfig;
+use crate::sources::Source;
 
 pub mod api;
 pub mod config;
 pub mod db;
 pub mod listener;
 pub mod model;
-pub mod parser;
+pub mod events;
 pub mod sources;
 
 /// Core server state for the Litehook server.
@@ -76,27 +80,48 @@ impl Server {
         // Local set is needed because scraper is !Send
         let local = tokio::task::LocalSet::new();
 
+        // Start event handler
+        let (event_tx, event_rx) = mpsc::channel(100);
+        let event_handler = EventHandler::new(event_rx);
+        tokio::task::spawn(async move { event_handler.run().await });
+
         local
             .run_until(async {
-                // Load listeners from db
-                for listener in self.db.get_all_listeners().await.unwrap() {
-                    self.add_listener(ListenerConfig::from(listener))
-                        .await
-                        .unwrap();
-                }
+                // // Load listeners from db
+                // for listener in self.db.get_all_listeners().await.unwrap() {
+                //     self.add_listener(ListenerConfig::from(listener))
+                //         .await
+                //         .unwrap();
+                // }
 
-                // Load listeners from env
-                if let Some(channels) = &self.env.channels {
-                    for c in channels {
-                        self.add_listener(ListenerConfig {
-                            id: c.clone(),
-                            channel_url: format!("https://t.me/s/{}", c),
-                            ..Default::default()
-                        })
-                        .await
-                        .unwrap();
-                    }
-                }
+                // // Load listeners from env
+                // if let Some(channels) = &self.env.channels {
+                //     for c in channels {
+                //         self.add_listener(ListenerConfig {
+                //             id: c.clone(),
+                //             channel_url: format!("https://t.me/s/{}", c),
+                //             ..Default::default()
+                //         })
+                //         .await
+                //         .unwrap();
+                //     }
+                // }
+
+                let raw_value = TelegramScraperConfig {
+                    id: "test".to_string(),
+                    channel_url: "https://t.me/s/telegram".to_string(),
+                    webhook_url: "https://example.com".to_string(),
+                    poll_interval: 60
+                };
+                let test_config = sources::SourceConfig {
+                    kind: "telegram_scraper".to_string(),
+                    raw: serde_json::to_value(raw_value).unwrap(),
+                };
+                let scr = sources::telegram::TelegramSource::new(test_config, event_tx.clone()).await.unwrap();
+                
+                tokio::task::spawn_local({
+                    async move { scr.run().await }
+                });
 
                 let mut cmd_rx = self.cmd_rx.lock().await;
                 loop {

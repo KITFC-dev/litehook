@@ -4,14 +4,12 @@ use tokio::sync::{RwLock, mpsc};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
-use crate::parser;
-
+use super::parser;
 use super::TelegramScraperConfig;
 
 pub struct TelegramScraper {
     pub cfg: Arc<RwLock<TelegramScraperConfig>>,
 
-    #[allow(unused)]
     tx: mpsc::Sender<String>,
     client: RwLock<reqwest::Client>,
     shutdown: CancellationToken,
@@ -19,7 +17,6 @@ pub struct TelegramScraper {
 
 impl TelegramScraper {
     pub async fn new(cfg: TelegramScraperConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
-        //TODO: cfg.validate()?;
         tracing::info!("initializing listener {}", cfg.id);
         let client = Self::create_client().await?;
         Ok(Self {
@@ -60,8 +57,6 @@ impl TelegramScraper {
             Ok(_) => {}
             Err(e) => {
                 tracing::warn!("poll failed, retrying: {e}");
-                #[allow(unused)]
-                let proxy_list_url = self.cfg.read().await.proxy_list_url.clone();
                 *self.client.write().await = Self::create_client().await?;
                 self.poll(url).await?;
             }
@@ -79,21 +74,8 @@ impl TelegramScraper {
             Some(p) => p,
             None => return Err(anyhow!("invalid channel: {}", url)),
         };
-        // TODO: use event handler for this
-        // TODO: send event to event handler
-        // let mut new_posts = Vec::new();
 
-        // for post in &page.posts {
-        //     if self.db.get_posts(&post.id).await?.is_none() {
-        //         tracing::info!("new post: {}", post.id);
-        //         self.db.insert_post(post).await?;
-        //         new_posts.push(post.clone());
-        //     }
-        // }
-
-        // if !new_posts.is_empty() {
-        //     tracing::info!("new posts: {}", new_posts.len());
-        // }
+        self.tx.send(format!("test {}", url)).await?;
 
         Ok(())
     }

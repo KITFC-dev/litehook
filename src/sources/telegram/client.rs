@@ -1,4 +1,5 @@
 use tokio::sync::RwLock;
+use tokio::time::{Duration, sleep};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -8,7 +9,6 @@ use crate::Arc;
 pub struct TelegramClient {
     pub cfg: Arc<RwLock<TelegramClientConfig>>,
 
-    #[allow(unused)]
     tx: mpsc::Sender<String>,
 
     shutdown: CancellationToken,
@@ -16,7 +16,6 @@ pub struct TelegramClient {
 
 impl TelegramClient {
     pub async fn new(cfg: TelegramClientConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
-        //TODO: cfg.validate()?;
         tracing::info!("initializing listener {}", cfg.id);
         Ok(Self {
             cfg: Arc::new(RwLock::new(cfg)),
@@ -52,6 +51,10 @@ impl TelegramClient {
 
     pub async fn start_listener(&self, channel_ids: Vec<i64>) -> anyhow::Result<()> {
         tracing::info!("starting listening to channels: {:#?}", channel_ids);
-        todo!()
+        
+        sleep(Duration::from_secs(3)).await;
+
+        self.tx.send("test".to_string()).await.unwrap();
+        Ok(())
     }
 }

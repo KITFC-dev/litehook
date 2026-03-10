@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 use crate::config::{GlobalListenerConfig, ListenerConfig};
 use crate::db::Db;
 use crate::model::{Channel, Post, WebhookPayload};
-use crate::parser;
+use crate::sources::telegram::parser;
 
 pub struct Listener {
     pub cfg: Arc<RwLock<ListenerConfig>>,

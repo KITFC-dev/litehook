@@ -1,11 +1,12 @@
 use crate::sources::{Source, SourceConfig};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use self::client::TelegramClient;
 use self::scraper::TelegramScraper;
 
 pub mod client;
+pub mod parser;
 pub mod scraper;
 
 pub enum TelegramSourceKind {
@@ -13,13 +14,12 @@ pub enum TelegramSourceKind {
     Client(TelegramClient),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TelegramScraperConfig {
     pub id: String,
     pub channel_url: String,
     pub poll_interval: i64,
     pub webhook_url: String,
-    pub proxy_list_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -40,7 +40,6 @@ pub struct TelegramChannelConfig {
 pub struct TelegramSource {
     kind: TelegramSourceKind,
 
-    #[allow(unused)]
     tx: mpsc::Sender<String>,
 }
 
@@ -68,7 +67,6 @@ impl Source for TelegramSource {
         "telegram"
     }
 
-    #[allow(unused)]
     async fn run(&self) -> anyhow::Result<()> {
         match &self.kind {
             TelegramSourceKind::Scraper(scraper) => scraper.run().await,
