@@ -1,7 +1,8 @@
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::types::Json;
 
-use crate::{model::{Post, PostRow, SourceConfigRow}};
+use crate::model::{Post, PostRow};
+use crate::sources::{SourceConfig};
 
 /// SQLite database
 #[derive(Clone)]
@@ -102,7 +103,7 @@ impl Db {
         Ok(row.map(Into::into))
     }
 
-    pub async fn insert_source(&self, cfg: &SourceConfigRow) -> anyhow::Result<()> {
+    pub async fn insert_source(&self, cfg: &SourceConfig) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT OR REPLACE INTO sources
             (id, kind, raw)
@@ -117,8 +118,8 @@ impl Db {
         Ok(())
     }
 
-    pub async fn get_source(&self, id: &str) -> anyhow::Result<Option<SourceConfigRow>> {
-        let row: Option<SourceConfigRow> = sqlx::query_as(
+    pub async fn get_source(&self, id: &str) -> anyhow::Result<Option<SourceConfig>> {
+        let row: Option<SourceConfig> = sqlx::query_as(
             "SELECT id, kind, raw
             FROM sources WHERE id = ?",
         )
@@ -129,8 +130,8 @@ impl Db {
         Ok(row)
     }
 
-    pub async fn get_all_sources(&self) -> anyhow::Result<Vec<SourceConfigRow>> {
-        let rows: Vec<SourceConfigRow> = sqlx::query_as(
+    pub async fn get_all_sources(&self) -> anyhow::Result<Vec<SourceConfig>> {
+        let rows: Vec<SourceConfig> = sqlx::query_as(
             "SELECT id, kind, raw
             FROM sources",
         )

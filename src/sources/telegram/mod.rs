@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::sources::{Source, SourceConfig};
+use crate::sources::registry::SourceRegistration;
 use crate::events::Event;
 
 use self::client::TelegramClient;
@@ -10,6 +11,9 @@ use self::scraper::TelegramScraper;
 pub mod client;
 pub mod parser;
 pub mod scraper;
+
+pub const KIND_SCRAPER: &str = "telegram_scraper";
+pub const KIND_CLIENT:  &str = "telegram_client";
 
 pub enum TelegramSourceKind {
     Scraper(TelegramScraper),
@@ -40,29 +44,37 @@ pub struct TelegramChannelConfig {
 }
 
 pub struct TelegramSource {
+    id: String,
     kind: TelegramSourceKind,
 }
 
 impl TelegramSource {
     pub async fn new(cfg: SourceConfig, tx: mpsc::Sender<Event>) -> anyhow::Result<Self> {
         let kind = match cfg.kind.as_str() {
-            "telegram_scraper" => {
-                let cfg: TelegramScraperConfig = serde_json::from_value(cfg.raw)?;
-                TelegramSourceKind::Scraper(TelegramScraper::new(cfg, tx.clone()).await?)
+            KIND_SCRAPER => {
+                let scraper_cfg: TelegramScraperConfig = serde_json::from_value(cfg.raw.clone())?;
+                TelegramSourceKind::Scraper(TelegramScraper::new(scraper_cfg, tx).await?)
             }
-            "telegram_client" => {
-                let cfg: TelegramClientConfig = serde_json::from_value(cfg.raw)?;
-                TelegramSourceKind::Client(TelegramClient::new(cfg, tx.clone()).await?)
+            KIND_CLIENT => {
+                let client_cfg: TelegramClientConfig = serde_json::from_value(cfg.raw.clone())?;
+                TelegramSourceKind::Client(TelegramClient::new(client_cfg, tx).await?)
             }
-            other => anyhow::bail!("unknown kind: {other}"),
+            other => anyhow::bail!("unknown telegram kind: {other}"),
         };
 
-        Ok(Self { kind })
+        Ok(Self {
+            id: cfg.id.clone(),
+            kind,
+        })
     }
 }
 
 #[async_trait::async_trait(?Send)]
 impl Source for TelegramSource {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
     fn name(&self) -> &'static str {
         "telegram"
     }
@@ -74,5 +86,25 @@ impl Source for TelegramSource {
         }
     }
 
-    async fn stop(&self) {}
+    async fn stop(&self) -> anyhow::Result<()> {
+        match &self.kind {
+            TelegramSourceKind::Scraper(scraper) => scraper.stop().await,
+            TelegramSourceKind::Client(client) => client.stop().await,
+        }
+    }
 }
+
+// Register sources
+inventory::submit!(SourceRegistration {
+    kind: KIND_SCRAPER,
+    factory: |cfg, tx| Box::pin(async move {
+        Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source>)
+    }),
+});
+
+inventory::submit!(SourceRegistration {
+    kind: KIND_CLIENT,
+    factory: |cfg, tx| Box::pin(async move {
+        Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source>)
+    }),
+});
