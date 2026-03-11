@@ -111,7 +111,7 @@ impl Server {
                     id: "test".to_string(),
                     channel_url: "https://t.me/s/telegram".to_string(),
                     webhook_url: "https://example.com".to_string(),
-                    poll_interval: 60
+                    poll_interval: 15
                 };
                 let test_config = sources::SourceConfig {
                     kind: "telegram_scraper".to_string(),

@@ -2,7 +2,7 @@ use html_to_markdown_rs::convert;
 use scraper::{ElementRef, Html, Selector};
 use std::sync::LazyLock as Lazy;
 
-use crate::model::{Channel, ChannelCounters, Post, PostReaction, TmePage};
+use crate::model::{Channel, ChannelCounters, Post, PostReaction, Page};
 
 static ID_SEL: Lazy<Selector> =
     Lazy::new(|| Selector::parse("div.tgme_channel_info_header_username a").unwrap());
@@ -218,7 +218,7 @@ async fn parse_post(post: ElementRef<'_>) -> anyhow::Result<Post> {
 /// Parses the channel information, all visible posts on page (no scrolling),
 ///
 /// Returns [TmePage] or None if page is invalid
-pub async fn parse_page(html: &str) -> anyhow::Result<Option<TmePage>> {
+pub async fn parse_page(html: &str) -> anyhow::Result<Option<Page>> {
     let document = Html::parse_document(html);
     let mut posts = Vec::new();
 
@@ -237,5 +237,5 @@ pub async fn parse_page(html: &str) -> anyhow::Result<Option<TmePage>> {
         posts.push(parse_post(post).await?);
     }
 
-    Ok(Some(TmePage { channel, posts }))
+    Ok(Some(Page { channel, posts }))
 }

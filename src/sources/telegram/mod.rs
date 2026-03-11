@@ -1,6 +1,8 @@
-use crate::sources::{Source, SourceConfig};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
+
+use crate::sources::{Source, SourceConfig};
+use crate::events::Event;
 
 use self::client::TelegramClient;
 use self::scraper::TelegramScraper;
@@ -39,12 +41,10 @@ pub struct TelegramChannelConfig {
 
 pub struct TelegramSource {
     kind: TelegramSourceKind,
-
-    tx: mpsc::Sender<String>,
 }
 
 impl TelegramSource {
-    pub async fn new(cfg: SourceConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
+    pub async fn new(cfg: SourceConfig, tx: mpsc::Sender<Event>) -> anyhow::Result<Self> {
         let kind = match cfg.kind.as_str() {
             "telegram_scraper" => {
                 let cfg: TelegramScraperConfig = serde_json::from_value(cfg.raw)?;
@@ -57,7 +57,7 @@ impl TelegramSource {
             other => anyhow::bail!("unknown kind: {other}"),
         };
 
-        Ok(Self { kind, tx })
+        Ok(Self { kind })
     }
 }
 

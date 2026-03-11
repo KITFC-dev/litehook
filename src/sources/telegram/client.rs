@@ -5,17 +5,18 @@ use tokio_util::sync::CancellationToken;
 
 use super::TelegramClientConfig;
 use crate::Arc;
+use crate::events::Event;
 
 pub struct TelegramClient {
     pub cfg: Arc<RwLock<TelegramClientConfig>>,
 
-    tx: mpsc::Sender<String>,
+    tx: mpsc::Sender<Event>,
 
     shutdown: CancellationToken,
 }
 
 impl TelegramClient {
-    pub async fn new(cfg: TelegramClientConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
+    pub async fn new(cfg: TelegramClientConfig, tx: mpsc::Sender<Event>) -> anyhow::Result<Self> {
         tracing::info!("initializing listener {}", cfg.id);
         Ok(Self {
             cfg: Arc::new(RwLock::new(cfg)),
@@ -54,7 +55,7 @@ impl TelegramClient {
         
         sleep(Duration::from_secs(3)).await;
 
-        self.tx.send("test".to_string()).await.unwrap();
+        self.tx.send(Event::Test("test".to_string())).await.unwrap();
         Ok(())
     }
 }

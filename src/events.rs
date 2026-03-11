@@ -1,13 +1,23 @@
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
+use crate::model::{Post, Page};
+
+/// Event
+#[derive(Debug)]
+pub enum Event {
+    NewPost(Post),
+    Scrape(Page),
+    Test(String),
+}
+
 pub struct EventHandler {
-    rx: mpsc::Receiver<String>,
+    rx: mpsc::Receiver<Event>,
     shutdown: CancellationToken
 }
 
 impl EventHandler {
-    pub fn new(rx: mpsc::Receiver<String>) -> Self {
+    pub fn new(rx: mpsc::Receiver<Event>) -> Self {
         Self {
             rx,
             shutdown: CancellationToken::new(),
@@ -21,11 +31,15 @@ impl EventHandler {
                     self.rx.close();
                     return;
                 }
-                Some(msg) = self.rx.recv() => {
-                    tracing::info!("received new event: {}", msg);
+                Some(event) = self.rx.recv() => {
+                    self.handle_event(event).await
                 }
             }
         }
+    }
+
+    pub async fn handle_event(&mut self, event: Event) {
+        tracing::info!("received new event: {:#?}", event);
     }
 
     pub async fn stop(mut self) {

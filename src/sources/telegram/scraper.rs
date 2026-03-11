@@ -4,19 +4,21 @@ use tokio::sync::{RwLock, mpsc};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
+use crate::events::{Event};
+
 use super::parser;
 use super::TelegramScraperConfig;
 
 pub struct TelegramScraper {
     pub cfg: Arc<RwLock<TelegramScraperConfig>>,
 
-    tx: mpsc::Sender<String>,
+    tx: mpsc::Sender<Event>,
     client: RwLock<reqwest::Client>,
     shutdown: CancellationToken,
 }
 
 impl TelegramScraper {
-    pub async fn new(cfg: TelegramScraperConfig, tx: mpsc::Sender<String>) -> anyhow::Result<Self> {
+    pub async fn new(cfg: TelegramScraperConfig, tx: mpsc::Sender<Event>) -> anyhow::Result<Self> {
         tracing::info!("initializing listener {}", cfg.id);
         let client = Self::create_client().await?;
         Ok(Self {
@@ -70,12 +72,12 @@ impl TelegramScraper {
     async fn poll(&self, url: &str) -> anyhow::Result<()> {
         let client = self.client.read().await;
         let html = parser::fetch_html(&client, url).await?;
-        let _page = match parser::parse_page(&html).await? {
+        let page = match parser::parse_page(&html).await? {
             Some(p) => p,
             None => return Err(anyhow!("invalid channel: {}", url)),
         };
 
-        self.tx.send(format!("test {}", url)).await?;
+        self.tx.send(Event::Scrape(page)).await?;
 
         Ok(())
     }

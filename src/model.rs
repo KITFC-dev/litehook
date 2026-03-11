@@ -75,7 +75,8 @@ pub struct WebhookPayload<'a> {
 }
 
 /// Parsed Telegram channel public page
-pub struct TmePage {
+#[derive(Serialize, Debug)]
+pub struct Page {
     pub channel: Channel,
     pub posts: Vec<Post>,
 }
