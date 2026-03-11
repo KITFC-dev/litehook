@@ -113,9 +113,9 @@ impl Server {
                 }
                 cmd = cmd_rx.recv() => {
                     match cmd {
-                        Some(SourceCmd::Add(cfg))    => self.spawn_source(&cfg).await,
-                        Some(SourceCmd::Remove(id))  => self.shutdown_source(&id).await,
-                        None                         => self.shutdown.cancel(),
+                        Some(SourceCmd::Add(cfg)) => self.spawn_source(&cfg).await,
+                        Some(SourceCmd::Remove(id)) => self.shutdown_source(&id).await,
+                        None => self.shutdown.cancel(),
                     }
                 }
             }
@@ -170,15 +170,15 @@ impl Server {
 
     /// Get all source types from registry
     pub async fn get_source_types(&self) -> anyhow::Result<Vec<serde_json::Value>> {
-        Ok(
-            inventory::iter::<registry::SourceRegistration>()
-            .map(|r| serde_json::json!({
-                "kind":   r.kind,
-                "name":   r.name,
-                "fields": (r.fields)(),
-            }))
-            .collect()
-        )
+        Ok(inventory::iter::<registry::SourceRegistration>()
+            .map(|r| {
+                serde_json::json!({
+                    "kind": r.kind,
+                    "name": r.name,
+                    "fields": (r.fields)(),
+                })
+            })
+            .collect())
     }
 
     /// Check if the [Source] is running.

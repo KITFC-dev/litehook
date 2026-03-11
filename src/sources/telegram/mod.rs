@@ -1,6 +1,6 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use schemars::JsonSchema;
 
 use crate::events::Event;
 use crate::sources::registry::SourceRegistration;
@@ -99,7 +99,7 @@ impl Source for TelegramSource {
 inventory::submit!(SourceRegistration {
     kind: KIND_SCRAPER,
     name: "Telegram scraper",
-    fields:  || schemars::schema_for!(TelegramScraperConfig),
+    fields: || schemars::schema_for!(TelegramScraperConfig),
     factory: |cfg, tx| Box::pin(async move {
         Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source + Send>)
     }),
@@ -108,7 +108,7 @@ inventory::submit!(SourceRegistration {
 inventory::submit!(SourceRegistration {
     kind: KIND_CLIENT,
     name: "Telegram client",
-    fields:  || schemars::schema_for!(TelegramClientConfig),
+    fields: || schemars::schema_for!(TelegramClientConfig),
     factory: |cfg, tx| Box::pin(async move {
         Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source + Send>)
     }),
