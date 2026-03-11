@@ -2,7 +2,7 @@ use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::types::Json;
 
 use crate::model::{Post, PostRow};
-use crate::sources::{SourceConfig};
+use crate::sources::SourceConfig;
 
 /// SQLite database
 #[derive(Clone)]

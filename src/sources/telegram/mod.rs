@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use crate::sources::{Source, SourceConfig};
-use crate::sources::registry::SourceRegistration;
 use crate::events::Event;
+use crate::sources::registry::SourceRegistration;
+use crate::sources::{Source, SourceConfig};
 
 use self::client::TelegramClient;
 use self::scraper::TelegramScraper;
@@ -13,7 +13,7 @@ pub mod parser;
 pub mod scraper;
 
 pub const KIND_SCRAPER: &str = "telegram_scraper";
-pub const KIND_CLIENT:  &str = "telegram_client";
+pub const KIND_CLIENT: &str = "telegram_client";
 
 pub enum TelegramSourceKind {
     Scraper(TelegramScraper),

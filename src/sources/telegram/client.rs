@@ -1,6 +1,6 @@
 use tokio::sync::RwLock;
-use tokio::time::{Duration, sleep};
 use tokio::sync::mpsc;
+use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
 use super::TelegramClientConfig;
@@ -52,7 +52,7 @@ impl TelegramClient {
 
     pub async fn start_listener(&self, channel_ids: Vec<i64>) -> anyhow::Result<()> {
         tracing::info!("starting listening to channels: {:#?}", channel_ids);
-        
+
         sleep(Duration::from_secs(3)).await;
 
         self.tx.send(Event::Test("test".to_string())).await.unwrap();

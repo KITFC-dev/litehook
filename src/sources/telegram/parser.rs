@@ -2,7 +2,7 @@ use html_to_markdown_rs::convert;
 use scraper::{ElementRef, Html, Selector};
 use std::sync::LazyLock as Lazy;
 
-use crate::model::{Channel, ChannelCounters, Post, PostReaction, Page};
+use crate::model::{Channel, ChannelCounters, Page, Post, PostReaction};
 
 static ID_SEL: Lazy<Selector> =
     Lazy::new(|| Selector::parse("div.tgme_channel_info_header_username a").unwrap());

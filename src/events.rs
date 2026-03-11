@@ -1,7 +1,7 @@
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::model::{Post, Page};
+use crate::model::{Page, Post};
 
 /// Event
 #[derive(Debug)]
@@ -13,7 +13,7 @@ pub enum Event {
 
 pub struct EventHandler {
     rx: mpsc::Receiver<Event>,
-    shutdown: CancellationToken
+    shutdown: CancellationToken,
 }
 
 impl EventHandler {

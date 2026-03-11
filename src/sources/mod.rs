@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-pub mod telegram;
 pub mod registry;
+pub mod telegram;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct SourceConfig {
@@ -13,18 +13,18 @@ pub struct SourceConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceInfo {
-    pub id:     String,
-    pub kind:   String,
-    pub raw:    serde_json::Value,
+    pub id: String,
+    pub kind: String,
+    pub raw: serde_json::Value,
     pub active: bool,
 }
 
 impl From<SourceConfig> for SourceInfo {
     fn from(cfg: SourceConfig) -> Self {
         Self {
-            id:     cfg.id,
-            kind:   cfg.kind,
-            raw:    cfg.raw,
+            id: cfg.id,
+            kind: cfg.kind,
+            raw: cfg.raw,
             active: false,
         }
     }
@@ -43,5 +43,7 @@ pub trait Source: Send + Sync {
     async fn run(&self) -> anyhow::Result<()>;
 
     /// Stop the source
-    async fn stop(&self) -> anyhow::Result<()> { Ok(()) }
+    async fn stop(&self) -> anyhow::Result<()> {
+        Ok(())
+    }
 }

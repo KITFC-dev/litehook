@@ -16,8 +16,8 @@ use crate::sources::{Source, SourceConfig, SourceInfo};
 pub mod api;
 pub mod config;
 pub mod db;
-pub mod model;
 pub mod events;
+pub mod model;
 pub mod sources;
 
 /// Core server state for the Litehook server.
@@ -82,7 +82,11 @@ impl Server {
     /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
         // Start event handler
-        let event_rx = self.event_rx.lock().await.take()
+        let event_rx = self
+            .event_rx
+            .lock()
+            .await
+            .take()
             .expect("event receiver already taken");
         let event_handler = EventHandler::new(event_rx);
         tokio::spawn(async move { event_handler.run().await });
@@ -93,7 +97,11 @@ impl Server {
         }
 
         // Command loop
-        let mut cmd_rx = self.cmd_rx.lock().await.take()
+        let mut cmd_rx = self
+            .cmd_rx
+            .lock()
+            .await
+            .take()
             .expect("cmd receiver already taken");
 
         loop {
@@ -129,9 +137,7 @@ impl Server {
 
     /// Send a command to remove a [Source].
     pub async fn remove_source(&self, id: &str) -> anyhow::Result<()> {
-        self.cmd_tx
-            .send(SourceCmd::Remove(id.to_string()))
-            .await?;
+        self.cmd_tx.send(SourceCmd::Remove(id.to_string())).await?;
 
         // Remove from db
         if let Err(e) = self.db.delete_source(id).await {
@@ -143,7 +149,10 @@ impl Server {
 
     /// Update [Source] with a new [SourceConfig] and [EnvConfig].
     pub async fn update_source(&self, cfg: &SourceConfig) -> anyhow::Result<()> {
-        let source = self.sources.lock().await
+        let source = self
+            .sources
+            .lock()
+            .await
             .get(&cfg.id)
             .ok_or(anyhow::anyhow!("source not found"))?
             .clone();
@@ -154,7 +163,7 @@ impl Server {
         self.spawn_source(cfg).await;
 
         self.db.insert_source(&cfg).await?;
-        
+
         Ok(())
     }
 
@@ -179,7 +188,10 @@ impl Server {
     pub async fn get_all_sources(&self) -> anyhow::Result<Vec<SourceInfo>> {
         let running = self.sources.lock().await;
 
-        let sources = self.db.get_all_sources().await?
+        let sources = self
+            .db
+            .get_all_sources()
+            .await?
             .into_iter()
             .map(|cfg| {
                 let active = running.contains_key(&cfg.id);
@@ -224,11 +236,17 @@ impl Server {
         // Build source
         let id = cfg.id.clone();
         let source = match registry::build(cfg.clone(), self.event_tx.clone()).await {
-            Ok(s)  => Arc::new(s),
-            Err(e) => { tracing::error!("failed to build source: {e}"); return; }
+            Ok(s) => Arc::new(s),
+            Err(e) => {
+                tracing::error!("failed to build source: {e}");
+                return;
+            }
         };
 
-        self.sources.lock().await.insert(id.clone(), Arc::clone(&source));
+        self.sources
+            .lock()
+            .await
+            .insert(id.clone(), Arc::clone(&source));
 
         // Spawn source
         tokio::task::spawn_local(async move {

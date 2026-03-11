@@ -8,12 +8,9 @@ use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
-use crate::config::{EnvConfig};
+use crate::config::EnvConfig;
 use crate::sources::{SourceConfig, SourceInfo};
-use crate::{
-    Server,
-    model::{Health},
-};
+use crate::{Server, model::Health};
 
 /// Web API and dashboard for managing [Server] sources.
 ///
@@ -44,12 +41,12 @@ impl Api {
             .allow_headers(Any);
 
         let router = Router::new()
-            .route("/sources",      get(get_all_sources))
-            .route("/sources",      post(add_source))
+            .route("/sources", get(get_all_sources))
+            .route("/sources", post(add_source))
             .route("/sources/{id}", get(get_source))
             .route("/sources/{id}", put(update_source))
             .route("/sources/{id}", delete(remove_source))
-            .route("/health",       get(health))
+            .route("/health", get(health))
             .fallback_service(ServeDir::new("static"))
             .layer(cors)
             .with_state(Arc::clone(&server));
@@ -136,7 +133,13 @@ pub async fn health(State(server): State<Arc<Server>>) -> (StatusCode, Json<Heal
         Ok(h) => (StatusCode::OK, Json(h)),
         Err(e) => {
             tracing::error!("failed to get health: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(Health { ok: false, sources: 0 }))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Health {
+                    ok: false,
+                    sources: 0,
+                }),
+            )
         }
     }
 }

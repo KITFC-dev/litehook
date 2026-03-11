@@ -4,10 +4,10 @@ use tokio::sync::{RwLock, mpsc};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
-use crate::events::{Event};
+use crate::events::Event;
 
-use super::parser;
 use super::TelegramScraperConfig;
+use super::parser;
 
 pub struct TelegramScraper {
     pub cfg: Arc<RwLock<TelegramScraperConfig>>,
