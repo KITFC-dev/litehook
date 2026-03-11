@@ -23,6 +23,13 @@ pub struct PostRow {
     pub date: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
+pub struct SourceConfigRow {
+    pub id: String,
+    pub kind: String,
+    pub raw: serde_json::Value,
+}
+
 /// DB row for Listener
 #[derive(Serialize, FromRow)]
 pub struct ListenerRow {

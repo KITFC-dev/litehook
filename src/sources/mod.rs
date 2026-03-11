@@ -1,5 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 pub mod telegram;
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SourceConfig {
     pub kind: String,
     pub raw: serde_json::Value,
