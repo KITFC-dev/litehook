@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
+use schemars::JsonSchema;
 
 use crate::events::Event;
 use crate::sources::registry::SourceRegistration;
@@ -20,7 +21,7 @@ pub enum TelegramSourceKind {
     Client(TelegramClient),
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct TelegramScraperConfig {
     pub id: String,
     pub channel_url: String,
@@ -28,7 +29,7 @@ pub struct TelegramScraperConfig {
     pub webhook_url: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct TelegramClientConfig {
     pub id: String,
     pub api_id: i32,
@@ -37,7 +38,7 @@ pub struct TelegramClientConfig {
     pub channels: Vec<TelegramChannelConfig>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct TelegramChannelConfig {
     pub id: i64,
     pub webhook_url: String,
@@ -97,6 +98,8 @@ impl Source for TelegramSource {
 // Register sources
 inventory::submit!(SourceRegistration {
     kind: KIND_SCRAPER,
+    name: "Telegram scraper",
+    fields:  || schemars::schema_for!(TelegramScraperConfig),
     factory: |cfg, tx| Box::pin(async move {
         Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source + Send>)
     }),
@@ -104,6 +107,8 @@ inventory::submit!(SourceRegistration {
 
 inventory::submit!(SourceRegistration {
     kind: KIND_CLIENT,
+    name: "Telegram client",
+    fields:  || schemars::schema_for!(TelegramClientConfig),
     factory: |cfg, tx| Box::pin(async move {
         Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source + Send>)
     }),

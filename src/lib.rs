@@ -107,6 +107,7 @@ impl Server {
         loop {
             tokio::select! {
                 _ = self.shutdown.cancelled() => {
+                    self.get_source_types().await?;
                     self.stop_all().await;
                     break;
                 }
@@ -165,6 +166,19 @@ impl Server {
         self.db.insert_source(cfg).await?;
 
         Ok(())
+    }
+
+    /// Get all source types from registry
+    pub async fn get_source_types(&self) -> anyhow::Result<Vec<serde_json::Value>> {
+        Ok(
+            inventory::iter::<registry::SourceRegistration>()
+            .map(|r| serde_json::json!({
+                "kind":   r.kind,
+                "name":   r.name,
+                "fields": (r.fields)(),
+            }))
+            .collect()
+        )
     }
 
     /// Check if the [Source] is running.

@@ -10,6 +10,8 @@ pub type SourceFactory =
 
 pub struct SourceRegistration {
     pub kind: &'static str,
+    pub name: &'static str,
+    pub fields: fn() -> schemars::schema::RootSchema,
     pub factory: fn(SourceConfig, mpsc::Sender<Event>) -> SourceFactory,
 }
 
@@ -22,7 +24,7 @@ pub async fn build(
 ) -> anyhow::Result<Box<dyn Source + Send>> {
     let registration = inventory::iter::<SourceRegistration>()
         .find(|r| r.kind == cfg.kind)
-        .ok_or_else(|| anyhow::anyhow!("no source registered for kind `{}`", cfg.kind))?;
+        .ok_or_else(|| anyhow::anyhow!("no source registered for kind '{}'", cfg.kind))?;
 
     (registration.factory)(cfg, tx).await
 }

@@ -46,6 +46,7 @@ impl Api {
             .route("/sources/{id}", get(get_source))
             .route("/sources/{id}", put(update_source))
             .route("/sources/{id}", delete(remove_source))
+            .route("/sources/types", get(get_source_types))
             .route("/health", get(health))
             .fallback_service(ServeDir::new("static"))
             .layer(cors)
@@ -77,6 +78,18 @@ pub async fn get_all_sources(
         Ok(s) => (StatusCode::OK, Json(s)),
         Err(e) => {
             tracing::error!("failed to get all sources: {e}");
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::new()))
+        }
+    }
+}
+
+pub async fn get_source_types(
+    State(server): State<Arc<Server>>,
+) -> (StatusCode, Json<Vec<serde_json::Value>>) {
+    match server.get_source_types().await {
+        Ok(s) => (StatusCode::OK, Json(s)),
+        Err(e) => {
+            tracing::error!("failed to get source types: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::new()))
         }
     }
