@@ -162,7 +162,7 @@ impl Server {
         //TODO: merge with global config
         self.spawn_source(cfg).await;
 
-        self.db.insert_source(&cfg).await?;
+        self.db.insert_source(cfg).await?;
 
         Ok(())
     }
