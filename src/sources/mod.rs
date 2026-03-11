@@ -4,14 +4,14 @@ use sqlx::FromRow;
 pub mod telegram;
 pub mod registry;
 
-#[derive(Debug, Clone, Deserialize, Serialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct SourceConfig {
     pub id: String,
     pub kind: String,
     pub raw: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceInfo {
     pub id:     String,
     pub kind:   String,
@@ -31,8 +31,8 @@ impl From<SourceConfig> for SourceInfo {
 }
 
 /// Source trait
-#[async_trait::async_trait(?Send)]
-pub trait Source {
+#[async_trait::async_trait]
+pub trait Source: Send + Sync {
     /// Get the id of the source
     fn id(&self) -> &str;
 

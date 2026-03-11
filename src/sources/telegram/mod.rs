@@ -69,7 +69,7 @@ impl TelegramSource {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl Source for TelegramSource {
     fn id(&self) -> &str {
         &self.id
@@ -98,13 +98,13 @@ impl Source for TelegramSource {
 inventory::submit!(SourceRegistration {
     kind: KIND_SCRAPER,
     factory: |cfg, tx| Box::pin(async move {
-        Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source>)
+        Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source + Send>)
     }),
 });
 
 inventory::submit!(SourceRegistration {
     kind: KIND_CLIENT,
     factory: |cfg, tx| Box::pin(async move {
-        Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source>)
+        Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source + Send>)
     }),
 });

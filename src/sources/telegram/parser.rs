@@ -168,7 +168,7 @@ fn parse_channel(channel: ElementRef<'_>) -> anyhow::Result<Channel> {
     Ok(data)
 }
 
-async fn parse_post(post: ElementRef<'_>) -> anyhow::Result<Post> {
+fn parse_post(post: ElementRef<'_>) -> anyhow::Result<Post> {
     let id = post
         .select_first(&MSG_SEL)
         .expect("post not found")
@@ -218,7 +218,7 @@ async fn parse_post(post: ElementRef<'_>) -> anyhow::Result<Post> {
 /// Parses the channel information, all visible posts on page (no scrolling),
 ///
 /// Returns [TmePage] or None if page is invalid
-pub async fn parse_page(html: &str) -> anyhow::Result<Option<Page>> {
+pub fn parse_page(html: &str) -> anyhow::Result<Option<Page>> {
     let document = Html::parse_document(html);
     let mut posts = Vec::new();
 
@@ -234,7 +234,7 @@ pub async fn parse_page(html: &str) -> anyhow::Result<Option<Page>> {
     };
 
     for post in document.select(&POST_SEL) {
-        posts.push(parse_post(post).await?);
+        posts.push(parse_post(post)?);
     }
 
     Ok(Some(Page { channel, posts }))

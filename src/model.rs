@@ -85,7 +85,7 @@ pub struct Page {
 #[derive(Serialize)]
 pub struct Health {
     pub ok: bool,
-    pub listeners: usize,
+    pub sources: usize,
 }
 
 /// Convert PostRow to Post

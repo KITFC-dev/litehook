@@ -8,23 +8,24 @@ use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
-use crate::config::{EnvConfig, ListenerConfig};
+use crate::config::{EnvConfig};
+use crate::sources::{SourceConfig, SourceInfo};
 use crate::{
     Server,
-    model::{Health, ListenerRow},
+    model::{Health},
 };
 
-/// Web API and dashboard for managing [Server] listeners.
+/// Web API and dashboard for managing [Server] sources.
 ///
 /// ### REST Endpoints
 ///
 /// | Method | Path | Handler |
 /// |--------|------|---------|
-/// | `GET` | `/listeners` | [get_all_listeners] |
-/// | `POST` | `/listeners` | [add_listener] |
-/// | `GET` | `/listeners/{id}` | [get_listener] |
-/// | `PUT` | `/listeners/{id}` | [update_listener] |
-/// | `DELETE` | `/listeners/{id}` | [remove_listener] |
+/// | `GET` | `/sources` | [get_all_sources] |
+/// | `POST` | `/sources` | [add_source] |
+/// | `GET` | `/sources/{id}` | [get_source] |
+/// | `PUT` | `/sources/{id}` | [update_source] |
+/// | `DELETE` | `/sources/{id}` | [remove_source] |
 /// | `GET` | `/health` | [health] |
 pub struct Api {
     env: EnvConfig,
@@ -43,12 +44,12 @@ impl Api {
             .allow_headers(Any);
 
         let router = Router::new()
-            .route("/listeners", get(get_all_listeners))
-            .route("/listeners", post(add_listener))
-            .route("/listeners/{id}", get(get_listener))
-            .route("/listeners/{id}", put(update_listener))
-            .route("/listeners/{id}", delete(remove_listener))
-            .route("/health", get(health))
+            .route("/sources",      get(get_all_sources))
+            .route("/sources",      post(add_source))
+            .route("/sources/{id}", get(get_source))
+            .route("/sources/{id}", put(update_source))
+            .route("/sources/{id}", delete(remove_source))
+            .route("/health",       get(health))
             .fallback_service(ServeDir::new("static"))
             .layer(cors)
             .with_state(Arc::clone(&server));
@@ -72,64 +73,61 @@ impl Api {
     }
 }
 
-pub async fn get_all_listeners(
+pub async fn get_all_sources(
     State(server): State<Arc<Server>>,
-) -> (StatusCode, Json<Vec<ListenerRow>>) {
-    match server.get_all_listeners().await {
-        Ok(l) => (StatusCode::OK, Json(l)),
+) -> (StatusCode, Json<Vec<SourceInfo>>) {
+    match server.get_all_sources().await {
+        Ok(s) => (StatusCode::OK, Json(s)),
         Err(e) => {
-            tracing::error!("failed to get all listeners: {e}");
+            tracing::error!("failed to get all sources: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, Json(Vec::new()))
         }
     }
 }
 
-pub async fn add_listener(
+pub async fn add_source(
     State(server): State<Arc<Server>>,
-    Json(body): Json<ListenerConfig>,
+    Json(body): Json<SourceConfig>,
 ) -> StatusCode {
-    if let Err(e) = server.add_listener(body).await {
-        tracing::error!("failed to add listener: {e}");
+    if let Err(e) = server.add_source(&body).await {
+        tracing::error!("failed to add source: {e}");
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
-
     StatusCode::OK
 }
 
-pub async fn get_listener(
+pub async fn get_source(
     State(server): State<Arc<Server>>,
     Path(id): Path<String>,
-) -> (StatusCode, Json<Option<ListenerRow>>) {
-    match server.get_listener(&id).await {
-        Ok(l) => (StatusCode::OK, Json(l)),
+) -> (StatusCode, Json<Option<SourceInfo>>) {
+    match server.get_source(&id).await {
+        Ok(s) => (StatusCode::OK, Json(s)),
         Err(e) => {
-            tracing::error!("failed to get listener: {e}");
+            tracing::error!("failed to get source: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, Json(None))
         }
     }
 }
 
-pub async fn update_listener(
+pub async fn update_source(
     State(server): State<Arc<Server>>,
-    Json(body): Json<ListenerConfig>,
+    Json(body): Json<SourceConfig>,
 ) -> StatusCode {
-    if let Err(e) = server.update_listener(body).await {
-        tracing::error!("failed to update listener: {e}");
+    if let Err(e) = server.update_source(&body).await {
+        tracing::error!("failed to update source: {e}");
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
-
     StatusCode::OK
 }
 
-pub async fn remove_listener(
+pub async fn remove_source(
     State(server): State<Arc<Server>>,
     Path(id): Path<String>,
 ) -> StatusCode {
-    if let Err(e) = server.remove_listener(&id).await {
-        tracing::error!("failed to remove listener: {e}");
+    if let Err(e) = server.remove_source(&id).await {
+        tracing::error!("failed to remove source: {e}");
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
-
     StatusCode::OK
 }
 
@@ -138,13 +136,7 @@ pub async fn health(State(server): State<Arc<Server>>) -> (StatusCode, Json<Heal
         Ok(h) => (StatusCode::OK, Json(h)),
         Err(e) => {
             tracing::error!("failed to get health: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(Health {
-                    ok: false,
-                    listeners: 0,
-                }),
-            )
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(Health { ok: false, sources: 0 }))
         }
     }
 }

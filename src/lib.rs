@@ -8,17 +8,14 @@ use tokio::sync::{Mutex, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 use config::{EnvConfig, GlobalListenerConfig};
-use listener::Listener;
 use events::{Event, EventHandler};
 
-use crate::sources::telegram::TelegramScraperConfig;
 use crate::sources::registry;
 use crate::sources::{Source, SourceConfig, SourceInfo};
 
 pub mod api;
 pub mod config;
 pub mod db;
-pub mod listener;
 pub mod model;
 pub mod events;
 pub mod sources;
@@ -31,13 +28,13 @@ pub struct Server {
     /// Tokio Cancellation token for shutdown signal
     pub shutdown: CancellationToken,
 
-    listeners: Mutex<HashMap<String, Arc<Listener>>>,
-    sources: Mutex<HashMap<String, Arc<Box<dyn Source>>>>,
+    sources: Mutex<HashMap<String, Arc<Box<dyn Source + Send>>>>,
+    #[allow(unused)]
     env: EnvConfig,
     db: db::Db,
 
     cmd_tx: mpsc::Sender<SourceCmd>,
-    cmd_rx: Mutex<mpsc::Receiver<SourceCmd>>,
+    cmd_rx: Mutex<Option<mpsc::Receiver<SourceCmd>>>,
     cfg_tx: watch::Sender<GlobalListenerConfig>,
     event_tx: mpsc::Sender<Event>,
     event_rx: Mutex<Option<mpsc::Receiver<Event>>>,
@@ -68,12 +65,11 @@ impl Server {
 
         Ok(Self {
             shutdown: CancellationToken::new(),
-            listeners: Mutex::new(HashMap::new()),
             sources: Mutex::new(HashMap::new()),
             env,
             db,
             cmd_tx,
-            cmd_rx: Mutex::new(cmd_rx),
+            cmd_rx: Mutex::new(Some(cmd_rx)),
             cfg_tx,
             event_tx,
             event_rx: Mutex::new(Some(event_rx)),
@@ -85,74 +81,36 @@ impl Server {
     /// Spawns listener local tasks listens to mpsc commands
     /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
-        // Local set is needed because scraper is !Send
-        let local = tokio::task::LocalSet::new();
-
         // Start event handler
         let event_rx = self.event_rx.lock().await.take()
-            .expect("event handler already taken");
-
+            .expect("event receiver already taken");
         let event_handler = EventHandler::new(event_rx);
-        tokio::task::spawn(async move { event_handler.run().await });
+        tokio::spawn(async move { event_handler.run().await });
 
-        local
-            .run_until(async {
-                // // Load listeners from db
-                // for listener in self.db.get_all_listeners().await.unwrap() {
-                //     self.add_listener(ListenerConfig::from(listener))
-                //         .await
-                //         .unwrap();
-                // }
+        // Load sources from db
+        for cfg in self.db.get_all_sources().await? {
+            self.spawn_source(&cfg).await;
+        }
 
-                // // Load listeners from env
-                // if let Some(channels) = &self.env.channels {
-                //     for c in channels {
-                //         self.add_listener(ListenerConfig {
-                //             id: c.clone(),
-                //             channel_url: format!("https://t.me/s/{}", c),
-                //             ..Default::default()
-                //         })
-                //         .await
-                //         .unwrap();
-                //     }
-                // }
+        // Command loop
+        let mut cmd_rx = self.cmd_rx.lock().await.take()
+            .expect("cmd receiver already taken");
 
-                let raw_value = TelegramScraperConfig {
-                    id: "test".to_string(),
-                    channel_url: "https://t.me/s/telegram".to_string(),
-                    webhook_url: "https://example.com".to_string(),
-                    poll_interval: 15
-                };
-                let test_config = sources::SourceConfig {
-                    id: "test".to_string(),
-                    kind: "telegram_scraper".to_string(),
-                    raw: serde_json::to_value(raw_value).unwrap(),
-                };
-                let scr = sources::telegram::TelegramSource::new(test_config, self.event_tx.clone()).await.unwrap();
-                
-                tokio::task::spawn_local({
-                    async move { scr.run().await }
-                });
-
-                let mut cmd_rx = self.cmd_rx.lock().await;
-                loop {
-                    tokio::select! {
-                        _ = self.shutdown.cancelled() => {
-                            self.stop_all().await;
-                            break;
-                        }
-                        cmd = cmd_rx.recv() => {
-                            match cmd {
-                                Some(SourceCmd::Add(cfg)) => self.spawn_source(&cfg).await,
-                                Some(SourceCmd::Remove(id)) => self.shutdown_source(&id).await,
-                                // If channel closed shutdown the server
-                                None => self.shutdown.cancel(),
-                            }
-                        }
+        loop {
+            tokio::select! {
+                _ = self.shutdown.cancelled() => {
+                    self.stop_all().await;
+                    break;
+                }
+                cmd = cmd_rx.recv() => {
+                    match cmd {
+                        Some(SourceCmd::Add(cfg))    => self.spawn_source(&cfg).await,
+                        Some(SourceCmd::Remove(id))  => self.shutdown_source(&id).await,
+                        None                         => self.shutdown.cancel(),
                     }
                 }
-            })
-            .await;
+            }
+        }
 
         Ok(())
     }
@@ -235,10 +193,10 @@ impl Server {
     }
 
     pub async fn health(&self) -> anyhow::Result<model::Health> {
-        let listeners = self.listeners.lock().await;
+        let sources = self.sources.lock().await;
         Ok(model::Health {
             ok: true,
-            listeners: listeners.len(),
+            sources: sources.len(),
         })
     }
 

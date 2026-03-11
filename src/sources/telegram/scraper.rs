@@ -72,7 +72,7 @@ impl TelegramScraper {
     async fn poll(&self, url: &str) -> anyhow::Result<()> {
         let client = self.client.read().await;
         let html = parser::fetch_html(&client, url).await?;
-        let page = match parser::parse_page(&html).await? {
+        let page = match parser::parse_page(&html)? {
             Some(p) => p,
             None => return Err(anyhow!("invalid channel: {}", url)),
         };
