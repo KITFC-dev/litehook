@@ -133,9 +133,10 @@ async function editSource(id) {
         preConfirm: () => {
             const raw = {};
             for (const f of fields) {
-                const el  = document.getElementById(`swal-${f.id}`);
+                const el = document.getElementById(`swal-${f.id}`);
                 raw[f.id] = f.type === 'number' ? parseInt(el.value) : el.value;
             }
+            raw.id = id;
             return { id, kind: source.kind, raw };
         }
     }).then(result => {
