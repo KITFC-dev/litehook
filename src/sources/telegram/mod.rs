@@ -13,6 +13,7 @@ pub mod client;
 pub mod parser;
 pub mod scraper;
 
+/// Telegram source kind
 pub const KIND_SCRAPER: &str = "telegram_scraper";
 pub const KIND_CLIENT: &str = "telegram_client";
 
@@ -21,6 +22,7 @@ pub enum TelegramSourceKind {
     Client(TelegramClient),
 }
 
+/// Config for Telegram scraper
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct TelegramScraperConfig {
     pub id: String,
@@ -29,6 +31,7 @@ pub struct TelegramScraperConfig {
     pub webhook_url: String,
 }
 
+/// Config for Telegram client
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct TelegramClientConfig {
     pub id: String,
@@ -38,12 +41,17 @@ pub struct TelegramClientConfig {
     pub channels: Vec<TelegramChannelConfig>,
 }
 
+/// Representation of Telegram channel
+/// For specifying channels in client
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct TelegramChannelConfig {
     pub id: i64,
     pub webhook_url: String,
 }
 
+/// Telegram source
+/// 
+/// Can be either a scraper or a client
 pub struct TelegramSource {
     id: String,
     kind: TelegramSourceKind,
