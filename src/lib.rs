@@ -85,7 +85,7 @@ impl Server {
             .await
             .take()
             .expect("event receiver already taken");
-        let event_handler = EventHandler::new(event_rx);
+        let event_handler = EventHandler::new(event_rx, self.db.clone());
         tokio::spawn(async move { event_handler.run().await });
 
         // Load sources from db

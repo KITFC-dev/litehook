@@ -50,7 +50,7 @@ pub struct TelegramChannelConfig {
 }
 
 /// Telegram source
-/// 
+///
 /// Can be either a scraper or a client
 pub struct TelegramSource {
     id: String,
