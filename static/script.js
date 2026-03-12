@@ -12,8 +12,9 @@ async function loadSourceTypes() {
 }
 
 function schemaToFields(schema) {
-    const props = schema?.properties ?? {};
-    const required = schema?.required ?? [];
+    if (!schema) return [];
+    const props = schema.properties ?? {};
+    const required = schema.required ?? [];
     return Object.entries(props).map(([id, def]) => ({
         id,
         label: def.title ?? id,
@@ -24,8 +25,16 @@ function schemaToFields(schema) {
 
 function buildSwalFields(fields, existing = null) {
     return fields.map(f => `
-        <h4>${f.label}</h4>
-        <input id="swal-${f.id}" class="swal2-input" type="${f.type}" placeholder="${f.label}" value="${existing?.raw?.[f.id] ?? ''}">
+        <div class="swal-field">
+            <h4>${f.label}</h4>
+            <input 
+                id="swal-${f.id}" 
+                class="swal2-input" 
+                type="${f.type}" 
+                placeholder="${f.label} (${f.type})" 
+                value="${existing?.raw?.[f.id] ?? ''}"
+            >
+        </div>
     `).join('');
 }
 
@@ -55,20 +64,27 @@ async function fetchSources() {
         data.forEach(source => {
             const card = document.createElement('div');
             card.className = 'source-card';
-            
+
+            const def = SOURCE_TYPES.find(t => t.kind === source.kind);
+            const fields = schemaToFields(def?.fields).filter(f => f.id !== 'id');
+            const raw = source.raw ?? {};
+
             card.innerHTML = `
                 <div class="card-header">
                     <h3 class="source-id">${source.id}</h3>
                     <div class="source-tags">
                         <span class="source-tag">${source.active ? 'Running' : 'Not Running'}</span>
-                        <span class="source-tag">Interval: ${source.poll_interval} s</span>
+                        <span class="source-tag">${def?.name ?? source.kind}</span>
                     </div>
                 </div>
                 <hr>
+
                 <div class="card-body">
-                    <p class="source-attribute">Channel URL: <a href="${source.channel_url}">${source.channel_url}</a></p>
-                    <p class="source-attribute">Webhook URL: <a href="${source.webhook_url}">${source.webhook_url}</a></p>
+                    ${fields.map(f => `
+                        <p class="source-attribute">${f.label}: ${raw[f.id] ?? '—'}</p>
+                    `).join('')}
                 </div>
+                
                 <div class="source-footer">
                     <h4>Controls</h4>
                     <div class="source-controls">
@@ -99,6 +115,8 @@ async function fetchSources() {
 async function editSource(id) {
     const res = await fetch(`/sources/${id}`);
     const source = await res.json();
+    const def = SOURCE_TYPES.find(t => t.kind === source.kind);
+    const fields = schemaToFields(def?.fields).filter(f => f.id !== 'id');
 
     // Send swal
     Swal.fire({
@@ -110,30 +128,23 @@ async function editSource(id) {
         color: textColor,
         confirmButtonColor: accentColor,
         confirmButtonText: 'Update source',
-        html: `
-            <div class="swal2-html-container">
-                <h4>Channel URL</h4>
-                <input id="swal-channel" class="swal2-input" value="${source.channel_url}">
-                <h4>Webhook URL</h4>
-                <input id="swal-webhook" class="swal2-input" value="${source.webhook_url}">
-                <h4>Poll Interval (in seconds)</h4>
-                <input id="swal-interval" class="swal2-input" type="number" value="${source.poll_interval}">
-            </div>
-        `,
+        html: `<div class="swal2-html-container">${buildSwalFields(fields, source)}</div>`,
         // Prepare form
-        preConfirm: () => ({
-            id,
-            channel_url: document.getElementById('swal-channel').value,
-            webhook_url: document.getElementById('swal-webhook').value,
-            poll_interval: parseInt(document.getElementById('swal-interval').value),
-        })
+        preConfirm: () => {
+            const raw = {};
+            for (const f of fields) {
+                const el  = document.getElementById(`swal-${f.id}`);
+                raw[f.id] = f.type === 'number' ? parseInt(el.value) : el.value;
+            }
+            return { id, kind: source.kind, raw };
+        }
     }).then(result => {
         if (result.isConfirmed) {
             fetch(`/sources/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(result.value)
-            });
+            }).then(() => fetchSources());
         }
     });
 }
@@ -150,30 +161,46 @@ async function addSource() {
         confirmButtonText: 'Create',
         html: `
             <div class="swal2-html-container">
-                <h4>Source ID</h4>
-                <input id="swal-id" class="swal2-input" placeholder="unique id">
-                <h4>Channel URL</h4>
-                <input id="swal-channel" class="swal2-input" placeholder="https://t.me/s/...">
-                <h4>Webhook URL</h4>
-                <input id="swal-webhook" class="swal2-input" placeholder="https://...">
-                <h4>Poll Interval (in seconds)</h4>
-                <input id="swal-interval" class="swal2-input" type="number" placeholder="67">
+                <h4>Source Type</h4>
+                <select id="swal-kind" class="swal2-select">
+                    ${SOURCE_TYPES.map(t => `<option value="${t.kind}">${t.name}</option>`).join('')}
+                </select>
+
+                <div id="swal-fields">${buildSwalFields(schemaToFields(SOURCE_TYPES[0]?.fields))}</div>
             </div>
         `,
+        didOpen: () => {
+            // Listener to kind change
+            document.getElementById('swal-kind').addEventListener('change', e => {
+                const def = SOURCE_TYPES.find(t => t.kind === e.target.value);
+                document.getElementById('swal-fields').innerHTML = buildSwalFields(schemaToFields(def?.fields));
+            });
+        },
         // Prepare form
-        preConfirm: () => ({
-            id: document.getElementById('swal-id').value,
-            channel_url: document.getElementById('swal-channel').value,
-            webhook_url: document.getElementById('swal-webhook').value,
-            poll_interval: parseInt(document.getElementById('swal-interval').value),
-        })
+        preConfirm: () => {
+            const kind = document.getElementById('swal-kind').value;
+            const def = SOURCE_TYPES.find(t => t.kind === kind);
+            const fields = schemaToFields(def?.fields);
+            const raw = {};
+
+            for (const f of fields) {
+                const el = document.getElementById(`swal-${f.id}`);
+                raw[f.id] = f.type === 'number' ? parseInt(el.value) : el.value;
+                if (f.required && !raw[f.id] && raw[f.id] !== 0) {
+                    Swal.showValidationMessage(`${f.label} is required`);
+                    return false;
+                }
+            }
+
+            return { id: raw.id, kind, raw };
+        }
     }).then(result => {
         if (result.isConfirmed) {
             fetch(`/sources`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(result.value)
-            });
+            }).then(() => fetchSources());
         }
     });
 }
@@ -188,6 +215,7 @@ document.getElementById('sources-container').addEventListener('click', async (e)
 
     if (action === 'delete') {
         await fetch(`/sources/${id}`, { method: 'DELETE' });
+        fetchSources();
     } else if (action === 'edit') {
         await editSource(id);
     } else if (action === 'add') {
@@ -199,6 +227,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSourceTypes();
     fetchSources();
     health();
-    setInterval(fetchSources, 2500);
-    setInterval(health, 2500);
+    setInterval(fetchSources, 5000);
+    setInterval(health, 5000);
 });

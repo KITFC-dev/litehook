@@ -88,6 +88,15 @@ button:hover, .swal-confirm:hover {
     background-color: var(--accent-hover-color);
 }
 
+select {
+    background-color: var(--mantle);
+    color: var(--text-color);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
 #health-sources-count {
     color: var(--success-color);
     font-weight: 600;

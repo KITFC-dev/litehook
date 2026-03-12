@@ -77,9 +77,6 @@ impl Server {
     }
 
     /// Run [Server]
-    ///
-    /// Spawns listener local tasks listens to mpsc commands
-    /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
         // Start event handler
         let event_rx = self
@@ -263,7 +260,7 @@ impl Server {
             .insert(id.clone(), Arc::clone(&source));
 
         // Spawn source
-        tokio::task::spawn_local(async move {
+        tokio::task::spawn(async move {
             if let Err(e) = source.run().await {
                 tracing::error!("source {id} error: {e}");
             }
