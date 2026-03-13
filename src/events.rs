@@ -5,6 +5,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::db::Db;
 use crate::model::{Channel, Page, Post, WebhookPayload};
+use super::config::EnvConfig;
 
 /// Event type
 #[derive(Debug)]
@@ -17,17 +18,17 @@ pub struct EventHandler {
     rx: mpsc::Receiver<Event>,
     db: Db,
     client: Client,
-    webhook_secret: Option<String>,
+    env: EnvConfig,
     shutdown: CancellationToken,
 }
 
 impl EventHandler {
-    pub fn new(rx: mpsc::Receiver<Event>, db: Db) -> Self {
+    pub fn new(rx: mpsc::Receiver<Event>, db: Db, env: EnvConfig) -> Self {
         Self {
             rx,
             db,
             client: Client::new(),
-            webhook_secret: None,
+            env,
             shutdown: CancellationToken::new(),
         }
     }
@@ -93,7 +94,7 @@ impl EventHandler {
             .post(url)
             .header(
                 "x-secret",
-                &self.webhook_secret.clone().unwrap_or("".to_string()),
+                &self.env.webhook_secret.clone().unwrap_or("".to_string()),
             )
             .json(&payload)
             .send()

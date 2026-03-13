@@ -1,13 +1,8 @@
-//! litehook
-//!
-//! Polls a public Telegram channel page and sends webhook notifications
-//! when new posts are detected. State is stored in SQLite database.
-
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, mpsc, watch};
+use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
 
-use config::{EnvConfig, GlobalListenerConfig};
+use config::EnvConfig;
 use events::{Event, EventHandler};
 
 use crate::sources::registry;
@@ -20,22 +15,17 @@ pub mod events;
 pub mod model;
 pub mod sources;
 
-/// Core server state for the Litehook server.
-///
-/// Holds configuration, database connection, HTTP client,
-/// and shutdown signal.
+/// Core server state for the server.
 pub struct Server {
-    /// Tokio Cancellation token for shutdown signal
     pub shutdown: CancellationToken,
 
     sources: Mutex<HashMap<String, Arc<Box<dyn Source + Send>>>>,
-    #[allow(unused)]
+
     env: EnvConfig,
     db: db::Db,
 
     cmd_tx: mpsc::Sender<SourceCmd>,
     cmd_rx: Mutex<Option<mpsc::Receiver<SourceCmd>>>,
-    cfg_tx: watch::Sender<GlobalListenerConfig>,
     event_tx: mpsc::Sender<Event>,
     event_rx: Mutex<Option<mpsc::Receiver<Event>>>,
 }
@@ -48,17 +38,11 @@ pub enum SourceCmd {
 
 impl Server {
     /// Create a new instance of [Server].
-    ///
-    /// Creates SQLite database in data/litehook.db and creates data dir
-    /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
     pub async fn new() -> anyhow::Result<Self> {
         tracing::info!("initializing");
         let env = EnvConfig::from_dotenv()?;
         let (cmd_tx, cmd_rx) = mpsc::channel(100);
-        let global_cfg = GlobalListenerConfig::from_dotenv()?;
-        global_cfg.validate()?;
-        env.validate(&global_cfg)?;
-        let (cfg_tx, _) = watch::channel(global_cfg);
+        env.validate()?;
         let (event_tx, event_rx) = mpsc::channel(100);
 
         let db = db::Db::new(&env.db_path).await?;
@@ -70,7 +54,6 @@ impl Server {
             db,
             cmd_tx,
             cmd_rx: Mutex::new(Some(cmd_rx)),
-            cfg_tx,
             event_tx,
             event_rx: Mutex::new(Some(event_rx)),
         })
@@ -85,7 +68,7 @@ impl Server {
             .await
             .take()
             .expect("event receiver already taken");
-        let event_handler = EventHandler::new(event_rx, self.db.clone());
+        let event_handler = EventHandler::new(event_rx, self.db.clone(), self.env.clone());
         tokio::spawn(async move { event_handler.run().await });
 
         // Load sources from db
@@ -123,10 +106,6 @@ impl Server {
 
     /// Send a command to create a [Source].
     pub async fn add_source(&self, cfg: &SourceConfig) -> anyhow::Result<()> {
-        // TODO
-        // let cfg = cfg.merge_with(&self.cfg_tx.borrow());
-        // cfg.validate()?; // validate before sending command
-
         self.db.insert_source(cfg).await?;
         self.cmd_tx.send(SourceCmd::Add(cfg.clone())).await?;
 
@@ -155,9 +134,7 @@ impl Server {
             .ok_or(anyhow::anyhow!("source not found"))?
             .clone();
 
-        let _global_cfg = self.cfg_tx.borrow().clone();
         self.shutdown_source(source.id()).await;
-        //TODO: merge with global config
         self.spawn_source(cfg).await;
 
         self.db.insert_source(cfg).await?;
