@@ -21,7 +21,6 @@ pub struct Server {
 
     sources: Mutex<HashMap<String, Arc<Box<dyn Source + Send>>>>,
 
-    env: EnvConfig,
     db: db::Db,
 
     cmd_tx: mpsc::Sender<SourceCmd>,
@@ -44,14 +43,13 @@ impl Server {
         let (cmd_tx, cmd_rx) = mpsc::channel(100);
         env.validate()?;
         let (event_tx, event_rx) = mpsc::channel(100);
-        config::init_env(env.clone());
 
         let db = db::Db::new(&env.db_path).await?;
+        config::init_env(env);
 
         Ok(Self {
             shutdown: CancellationToken::new(),
             sources: Mutex::new(HashMap::new()),
-            env,
             db,
             cmd_tx,
             cmd_rx: Mutex::new(Some(cmd_rx)),
@@ -69,7 +67,7 @@ impl Server {
             .await
             .take()
             .expect("event receiver already taken");
-        let event_handler = EventHandler::new(event_rx, self.db.clone(), self.env.clone());
+        let event_handler = EventHandler::new(event_rx, self.db.clone());
         tokio::spawn(async move { event_handler.run().await });
 
         // Load sources from db
