@@ -3,9 +3,9 @@ use tokio::sync::mpsc;
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
+use super::config::EnvConfig;
 use crate::db::Db;
 use crate::model::{Channel, Page, Post, WebhookPayload};
-use super::config::EnvConfig;
 
 /// Event type
 #[derive(Debug)]
