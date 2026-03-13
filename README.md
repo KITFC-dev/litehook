@@ -83,21 +83,19 @@ Environment variables used by litehook, for example in your `.env` file in the s
 | Environment Variable | Description |
 | --- | --- |
 | PORT | Port for web interface, default is `4101` |
-| POLL_INTERVAL | Poll interval in seconds that will be used as a default. Default is `600` |
-| CHANNELS | IDs of channels to monitor separated by "," as an alternative to using web dashboard |
-| WEBHOOK_URL | URL to API endpoint that will receive the webhook, will be used as a default. |
 | WEBHOOK_SECRET | Webhook secret in `x-secret` header |
-| PROXY_LIST_URL | URL to SOCKS5 proxy list, you can try using [IPLocate proxy list](https://github.com/iplocate/free-proxy-list). But be aware that proxy can be slow and timeout |
+| PROXY_LIST_URL | URL to SOCKS5 proxy list |
 | DB_PATH | Path to SQLite database file, default is `data/litehook.db` |
 
 > [!TIP]
-> Set `POLL_INTERVAL` to something reasonable if you don't want to get rate limited by telegram, for example if the channel is posting rarely set to something like 300-600 seconds, otherwise set to a lower value
+> You can try using [IPLocate proxy list](https://github.com/iplocate/free-proxy-list).
+> Be aware that proxy can be slow and timeout the HTTP request.
 
 ## Webhook Documentation
 
-Webhook will be sent to `WEBHOOK_URL` with `POST` method, the server must return a `2xx` HTTP status code.
+Webhook will be sent to webhook url with `POST` method, the server must return a `2xx` HTTP status code.
 The webhook will be retried 4 additional times with a 1 second interval. If all retries fail, the data is still stored in the database and webhook will be dropped.
-It will include a `x-secret` header with the webhook secret from `WEBHOOK_SECRET` environment variable that you should verify on server before trusting the payload
+It will include a `x-secret` header with the webhook secret from `WEBHOOK_SECRET` environment variable that **you should verify on server before trusting the payload**.
 
 Example of the webhook payload:
 
