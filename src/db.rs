@@ -1,7 +1,8 @@
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::types::Json;
 
-use crate::model::{ListenerRow, Post, PostRow};
+use crate::model::{Post, PostRow};
+use crate::sources::SourceConfig;
 
 /// SQLite database
 #[derive(Clone)]
@@ -16,16 +17,18 @@ impl Db {
     /// Creates tables if they don't exist.
     pub async fn new(path: &str) -> anyhow::Result<Self> {
         // Ensure path exists
-        let path_ = std::path::Path::new(path);
-        if let Some(parent) = path_.parent() {
-            tokio::fs::create_dir_all(parent).await?;
+        if path != ":memory:" {
+            let path_ = std::path::Path::new(path);
+            if let Some(parent) = path_.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(path_)
+                .await?;
         }
-        tokio::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(path_)
-            .await?;
 
         // Configure connection pool
         let (url, conns) = if path == "memory" {
@@ -56,13 +59,10 @@ impl Db {
         .unwrap();
 
         sqlx::query(
-            "CREATE TABLE IF NOT EXISTS listeners (
+            "CREATE TABLE IF NOT EXISTS sources (
                 id TEXT PRIMARY KEY,
-                active BOOLEAN,
-                poll_interval INTEGER,
-                channel_url TEXT,
-                proxy_list_url TEXT,
-                webhook_url TEXT
+                kind TEXT,
+                raw TEXT
             )",
         )
         .execute(&pool)
@@ -105,28 +105,25 @@ impl Db {
         Ok(row.map(Into::into))
     }
 
-    pub async fn insert_listener(&self, cfg: ListenerRow) -> anyhow::Result<()> {
+    pub async fn insert_source(&self, cfg: &SourceConfig) -> anyhow::Result<()> {
         sqlx::query(
-            "INSERT OR REPLACE INTO listeners
-            (id, active, poll_interval, channel_url, proxy_list_url, webhook_url)
-            VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO sources
+            (id, kind, raw)
+            VALUES (?, ?, ?)",
         )
         .bind(&cfg.id)
-        .bind(cfg.active)
-        .bind(cfg.poll_interval)
-        .bind(&cfg.channel_url)
-        .bind(&cfg.proxy_list_url)
-        .bind(&cfg.webhook_url)
+        .bind(&cfg.kind)
+        .bind(&cfg.raw)
         .execute(&self.pool)
         .await?;
 
         Ok(())
     }
 
-    pub async fn get_listener(&self, id: &str) -> anyhow::Result<Option<ListenerRow>> {
-        let row: Option<ListenerRow> = sqlx::query_as(
-            "SELECT id, active, poll_interval, channel_url, proxy_list_url, webhook_url
-            FROM listeners WHERE id = ?",
+    pub async fn get_source(&self, id: &str) -> anyhow::Result<Option<SourceConfig>> {
+        let row: Option<SourceConfig> = sqlx::query_as(
+            "SELECT id, kind, raw
+            FROM sources WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(&self.pool)
@@ -135,10 +132,10 @@ impl Db {
         Ok(row)
     }
 
-    pub async fn get_all_listeners(&self) -> anyhow::Result<Vec<ListenerRow>> {
-        let rows: Vec<ListenerRow> = sqlx::query_as(
-            "SELECT id, active, poll_interval, channel_url, proxy_list_url, webhook_url
-            FROM listeners",
+    pub async fn get_all_sources(&self) -> anyhow::Result<Vec<SourceConfig>> {
+        let rows: Vec<SourceConfig> = sqlx::query_as(
+            "SELECT id, kind, raw
+            FROM sources",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -146,8 +143,8 @@ impl Db {
         Ok(rows)
     }
 
-    pub async fn delete_listener(&self, id: &str) -> anyhow::Result<()> {
-        sqlx::query("DELETE FROM listeners WHERE id = ?")
+    pub async fn delete_source(&self, id: &str) -> anyhow::Result<()> {
+        sqlx::query("DELETE FROM sources WHERE id = ?")
             .bind(id)
             .execute(&self.pool)
             .await?;

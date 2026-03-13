@@ -1,268 +1,263 @@
-//! litehook
-//!
-//! Polls a public Telegram channel page and sends webhook notifications
-//! when new posts are detected. State is stored in SQLite database.
-
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, mpsc, watch};
+use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
 
-use config::{EnvConfig, GlobalListenerConfig, ListenerConfig};
-use listener::Listener;
+use config::EnvConfig;
+use events::{Event, EventHandler};
+
+use crate::sources::registry;
+use crate::sources::{Source, SourceConfig, SourceInfo};
 
 pub mod api;
 pub mod config;
 pub mod db;
-pub mod listener;
+pub mod events;
 pub mod model;
-pub mod parser;
+pub mod sources;
 
-/// Core server state for the Litehook server.
-///
-/// Holds configuration, database connection, HTTP client,
-/// and shutdown signal.
+/// Core server state for the server.
 pub struct Server {
-    /// Tokio Cancellation token for shutdown signal
     pub shutdown: CancellationToken,
 
-    listeners: Mutex<HashMap<String, Arc<Listener>>>,
+    sources: Mutex<HashMap<String, Arc<Box<dyn Source + Send>>>>,
+
     env: EnvConfig,
     db: db::Db,
 
-    cmd_tx: mpsc::Sender<ListenerCmd>,
-    cmd_rx: Mutex<mpsc::Receiver<ListenerCmd>>,
-    cfg_tx: watch::Sender<GlobalListenerConfig>,
+    cmd_tx: mpsc::Sender<SourceCmd>,
+    cmd_rx: Mutex<Option<mpsc::Receiver<SourceCmd>>>,
+    event_tx: mpsc::Sender<Event>,
+    event_rx: Mutex<Option<mpsc::Receiver<Event>>>,
 }
 
-/// Commands for the [Server] to manage listeners
-pub enum ListenerCmd {
-    Add(ListenerConfig),
+/// Commands for the [Server] to manage sources
+pub enum SourceCmd {
+    Add(SourceConfig),
     Remove(String),
 }
 
 impl Server {
     /// Create a new instance of [Server].
-    ///
-    /// Creates SQLite database in data/litehook.db and creates data dir
-    /// if it doesn't exist. HTTP client is configured with a 10 second timeout.
     pub async fn new() -> anyhow::Result<Self> {
         tracing::info!("initializing");
         let env = EnvConfig::from_dotenv()?;
         let (cmd_tx, cmd_rx) = mpsc::channel(100);
-        let global_cfg = GlobalListenerConfig::from_dotenv()?;
-        global_cfg.validate()?;
-        env.validate(&global_cfg)?;
-        let (cfg_tx, _) = watch::channel(global_cfg);
+        env.validate()?;
+        let (event_tx, event_rx) = mpsc::channel(100);
 
         let db = db::Db::new(&env.db_path).await?;
 
         Ok(Self {
             shutdown: CancellationToken::new(),
-            listeners: Mutex::new(HashMap::new()),
+            sources: Mutex::new(HashMap::new()),
             env,
             db,
             cmd_tx,
-            cmd_rx: Mutex::new(cmd_rx),
-            cfg_tx,
+            cmd_rx: Mutex::new(Some(cmd_rx)),
+            event_tx,
+            event_rx: Mutex::new(Some(event_rx)),
         })
     }
 
     /// Run [Server]
-    ///
-    /// Spawns listener local tasks listens to mpsc commands
-    /// and handles shutdown signal.
     pub async fn run(self: Arc<Self>) -> anyhow::Result<()> {
-        // Local set is needed because scraper is !Send
-        let local = tokio::task::LocalSet::new();
+        // Start event handler
+        let event_rx = self
+            .event_rx
+            .lock()
+            .await
+            .take()
+            .expect("event receiver already taken");
+        let event_handler = EventHandler::new(event_rx, self.db.clone(), self.env.clone());
+        tokio::spawn(async move { event_handler.run().await });
 
-        local
-            .run_until(async {
-                // Load listeners from db
-                for listener in self.db.get_all_listeners().await.unwrap() {
-                    self.add_listener(ListenerConfig::from(listener))
-                        .await
-                        .unwrap();
-                }
-
-                // Load listeners from env
-                if let Some(channels) = &self.env.channels {
-                    for c in channels {
-                        self.add_listener(ListenerConfig {
-                            id: c.clone(),
-                            channel_url: format!("https://t.me/s/{}", c),
-                            ..Default::default()
-                        })
-                        .await
-                        .unwrap();
-                    }
-                }
-
-                let mut cmd_rx = self.cmd_rx.lock().await;
-                loop {
-                    tokio::select! {
-                        _ = self.shutdown.cancelled() => {
-                            self.stop_all().await;
-                            break;
-                        }
-                        cmd = cmd_rx.recv() => {
-                            match cmd {
-                                Some(ListenerCmd::Add(cfg)) => self.spawn_listener(cfg).await,
-                                Some(ListenerCmd::Remove(id)) => self.shutdown_listener(&id).await,
-                                // If channel closed shutdown the server
-                                None => self.shutdown.cancel(),
-                            }
-                        }
-                    }
-                }
-            })
-            .await;
-
-        Ok(())
-    }
-
-    /// Send an add command to server to create a [Listener].
-    pub async fn add_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
-        let cfg = cfg.merge_with(&self.cfg_tx.borrow());
-        cfg.validate()?; // validate before sending command
-
-        self.cmd_tx.send(ListenerCmd::Add(cfg.clone())).await?;
-
-        // Add to db
-        if let Err(e) = self.db.insert_listener(cfg.clone().into()).await {
-            tracing::error!("failed to add listener to db: {e}");
+        // Load sources from db
+        for cfg in self.db.get_all_sources().await? {
+            self.spawn_source(&cfg).await;
         }
+
+        // Command loop
+        let mut cmd_rx = self
+            .cmd_rx
+            .lock()
+            .await
+            .take()
+            .expect("cmd receiver already taken");
+
+        loop {
+            tokio::select! {
+                _ = self.shutdown.cancelled() => {
+                    self.get_source_types().await?;
+                    self.stop_all().await;
+                    break;
+                }
+                cmd = cmd_rx.recv() => {
+                    match cmd {
+                        Some(SourceCmd::Add(cfg)) => self.spawn_source(&cfg).await,
+                        Some(SourceCmd::Remove(id)) => self.shutdown_source(&id).await,
+                        None => self.shutdown.cancel(),
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
-    /// Send a remove command to server to remove a [Listener]
-    pub async fn remove_listener(&self, id: &str) -> anyhow::Result<()> {
-        self.cmd_tx
-            .send(ListenerCmd::Remove(id.to_string()))
-            .await?;
+    /// Send a command to create a [Source].
+    pub async fn add_source(&self, cfg: &SourceConfig) -> anyhow::Result<()> {
+        self.db.insert_source(cfg).await?;
+        self.cmd_tx.send(SourceCmd::Add(cfg.clone())).await?;
+
+        Ok(())
+    }
+
+    /// Send a command to remove a [Source].
+    pub async fn remove_source(&self, id: &str) -> anyhow::Result<()> {
+        self.cmd_tx.send(SourceCmd::Remove(id.to_string())).await?;
 
         // Remove from db
-        if let Err(e) = self.db.delete_listener(id).await {
-            tracing::error!("failed to delete listener from db {id}: {e}");
+        if let Err(e) = self.db.delete_source(id).await {
+            tracing::error!("failed to delete source from the db {id}: {e}");
         }
+
         Ok(())
     }
 
-    /// Update [Listener] with a new [ListenerConfig] and [EnvConfig]
-    pub async fn update_listener(&self, cfg: ListenerConfig) -> anyhow::Result<()> {
-        let listener = {
-            let listeners = self.listeners.lock().await;
-            listeners
-                .get(&cfg.id)
-                .ok_or(anyhow::anyhow!("listener not found"))?
-                .clone()
-        };
+    /// Update [Source] with a new [SourceConfig] and [EnvConfig].
+    pub async fn update_source(&self, cfg: &SourceConfig) -> anyhow::Result<()> {
+        let source = self
+            .sources
+            .lock()
+            .await
+            .get(&cfg.id)
+            .ok_or(anyhow::anyhow!("source not found"))?
+            .clone();
 
-        let global_cfg = self.cfg_tx.borrow().clone();
-        listener.reconfigure(&global_cfg, cfg.clone()).await;
+        self.shutdown_source(source.id()).await;
+        self.spawn_source(cfg).await;
 
-        // Update db
-        if let Err(e) = self.db.insert_listener(cfg.clone().into()).await {
-            tracing::error!("failed to update listener in db: {e}");
-        }
+        self.db.insert_source(cfg).await?;
+
         Ok(())
     }
 
-    // Check if the [Listener] is running.
-    pub async fn check_listener_running(&self, id: &str) -> bool {
-        let listeners = self.listeners.lock().await;
-        listeners.contains_key(id)
+    /// Get all source types from registry
+    pub async fn get_source_types(&self) -> anyhow::Result<Vec<serde_json::Value>> {
+        Ok(inventory::iter::<registry::SourceRegistration>()
+            .map(|r| {
+                serde_json::json!({
+                    "kind": r.kind,
+                    "name": r.name,
+                    "fields": (r.fields)(),
+                })
+            })
+            .collect())
     }
 
-    /// Get a [Listener] by id from the database
-    pub async fn get_listener(&self, id: &str) -> anyhow::Result<Option<model::ListenerRow>> {
-        let mut res = match self.db.get_listener(id).await? {
-            Some(r) => r,
+    /// Check if the [Source] is running.
+    pub async fn check_source_running(&self, id: &str) -> bool {
+        let sources = self.sources.lock().await;
+        sources.contains_key(id)
+    }
+
+    /// Get a [Source] by id from the database
+    pub async fn get_source(&self, id: &str) -> anyhow::Result<Option<SourceInfo>> {
+        let mut res: SourceInfo = match self.db.get_source(id).await? {
+            Some(r) => r.into(),
             None => return Ok(None),
         };
 
-        res.active = self.check_listener_running(id).await;
+        res.active = self.check_source_running(id).await;
         Ok(Some(res))
     }
 
-    /// Get all [Listener]s from the database
-    pub async fn get_all_listeners(&self) -> anyhow::Result<Vec<model::ListenerRow>> {
-        let mut listeners = self.db.get_all_listeners().await?;
-        let running = self.listeners.lock().await;
+    /// Get all [Source]s from the database.
+    pub async fn get_all_sources(&self) -> anyhow::Result<Vec<SourceInfo>> {
+        let running = self.sources.lock().await;
 
-        for l in listeners.iter_mut() {
-            l.active = running.contains_key(&l.id);
-        }
+        let sources = self
+            .db
+            .get_all_sources()
+            .await?
+            .into_iter()
+            .map(|cfg| {
+                let active = running.contains_key(&cfg.id);
+                let mut info = SourceInfo::from(cfg);
+                info.active = active;
+                info
+            })
+            .collect();
 
-        Ok(listeners)
+        Ok(sources)
     }
 
     pub async fn health(&self) -> anyhow::Result<model::Health> {
-        let listeners = self.listeners.lock().await;
+        let sources = self.sources.lock().await;
         Ok(model::Health {
             ok: true,
-            listeners: listeners.len(),
+            sources: sources.len(),
         })
     }
 
-    /// Stop all [Listener]s and clear the listeners hashmap.
+    /// Shutdowns all [Source]s.
     async fn stop_all(&self) {
-        tracing::info!("stopping all listeners");
+        tracing::info!("stopping all sources");
 
-        let listeners = {
-            let locked = self.listeners.lock().await;
+        let sources = {
+            let locked = self.sources.lock().await;
             locked.values().cloned().collect::<Vec<_>>()
         };
 
-        for listener in listeners {
-            let id = listener.cfg.read().await.id.clone();
-            self.shutdown_listener(&id).await;
+        for s in sources {
+            self.shutdown_source(s.id()).await;
         }
     }
 
-    async fn spawn_listener(&self, cfg: ListenerConfig) {
-        // Check if listenr already exists
-        if self.listeners.lock().await.contains_key(&cfg.id) {
-            tracing::warn!("listener {} already exists", cfg.id);
+    async fn spawn_source(&self, cfg: &SourceConfig) {
+        // Check if source already exists
+        if self.sources.lock().await.contains_key(&cfg.id) {
+            tracing::warn!("source with id '{}' already exists", cfg.id);
             return;
         }
 
-        let listener = match Listener::new(cfg, self.db.clone()).await {
-            Ok(l) => Arc::new(l),
+        // Build source
+        let id = cfg.id.clone();
+        let source = match registry::build(cfg.clone(), self.event_tx.clone()).await {
+            Ok(s) => Arc::new(s),
             Err(e) => {
-                tracing::error!("failed to create listener: {e}");
+                tracing::error!("failed to build source: {e}");
                 return;
             }
         };
 
-        // Add to listeners map
-        let id = listener.cfg.read().await.id.clone();
-        self.listeners
+        self.sources
             .lock()
             .await
-            .insert(id, Arc::clone(&listener));
+            .insert(id.clone(), Arc::clone(&source));
 
-        // Start listener
-        tokio::task::spawn_local({
-            let listener = Arc::clone(&listener);
-            let global_cfg = self.cfg_tx.subscribe().clone();
-            async move { listener.run(global_cfg).await }
+        // Spawn source
+        tokio::task::spawn(async move {
+            if let Err(e) = source.run().await {
+                tracing::error!("source {id} error: {e}");
+            }
         });
     }
 
-    async fn shutdown_listener(&self, id: &str) {
-        // Remove from listeners map
-        let listener = {
-            let mut listeners = self.listeners.lock().await;
-            listeners.remove(id)
+    async fn shutdown_source(&self, id: &str) {
+        // Remove from sources map
+        let source = {
+            let mut sources = self.sources.lock().await;
+            sources.remove(id)
         };
 
-        // Stop listener
-        if let Some(listener) = listener {
-            if let Err(e) = listener.stop().await {
-                tracing::error!("failed to stop listener {id}: {e}");
+        // Stop source
+        if let Some(source) = source {
+            if let Err(e) = source.stop().await {
+                tracing::error!("failed to stop source {id}: {e}");
             }
         } else {
-            tracing::warn!("listener not found for channel {}", id);
+            tracing::warn!("source not found for id {}", id);
         }
     }
 }

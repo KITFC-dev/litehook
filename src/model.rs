@@ -2,8 +2,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
 
-use crate::config::ListenerConfig;
-
 /// Post reactions
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub struct PostReaction {
@@ -21,17 +19,6 @@ pub struct PostRow {
     pub reactions: Json<Option<Vec<PostReaction>>>,
     pub views: String,
     pub date: String,
-}
-
-/// DB row for Listener
-#[derive(Serialize, FromRow)]
-pub struct ListenerRow {
-    pub id: String,
-    pub active: bool,
-    pub poll_interval: i64,
-    pub channel_url: String,
-    pub proxy_list_url: Option<String>,
-    pub webhook_url: String,
 }
 
 /// Telegram post
@@ -75,7 +62,8 @@ pub struct WebhookPayload<'a> {
 }
 
 /// Parsed Telegram channel public page
-pub struct TmePage {
+#[derive(Serialize, Debug)]
+pub struct Page {
     pub channel: Channel,
     pub posts: Vec<Post>,
 }
@@ -84,7 +72,7 @@ pub struct TmePage {
 #[derive(Serialize)]
 pub struct Health {
     pub ok: bool,
-    pub listeners: usize,
+    pub sources: usize,
 }
 
 /// Convert PostRow to Post
@@ -98,34 +86,6 @@ impl From<PostRow> for Post {
             reactions: row.reactions.0,
             views: Some(row.views),
             date: Some(row.date),
-        }
-    }
-}
-
-/// Convert ListenerConfig to ListenerRow
-impl From<ListenerConfig> for ListenerRow {
-    fn from(cfg: ListenerConfig) -> Self {
-        Self {
-            id: cfg.id,
-            active: false,
-            poll_interval: cfg.poll_interval.expect("valid poll interval"),
-            channel_url: cfg.channel_url,
-            proxy_list_url: cfg.proxy_list_url,
-            webhook_url: cfg.webhook_url.expect("valid webhook url"),
-        }
-    }
-}
-
-/// Convert ListenerRow to ListenerConfig
-impl From<ListenerRow> for ListenerConfig {
-    fn from(row: ListenerRow) -> Self {
-        Self {
-            id: row.id,
-            poll_interval: Some(row.poll_interval),
-            channel_url: row.channel_url,
-            proxy_list_url: row.proxy_list_url,
-            webhook_url: Some(row.webhook_url),
-            webhook_secret: None,
         }
     }
 }

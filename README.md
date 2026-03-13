@@ -95,7 +95,7 @@ Environment variables used by litehook, for example in your `.env` file in the s
 
 ## Webhook Documentation
 
-Webhook will be sent to `WEBHOOK_URL` with `POST` method, the server must return a `2xx` HTTP status code. 
+Webhook will be sent to `WEBHOOK_URL` with `POST` method, the server must return a `2xx` HTTP status code.
 The webhook will be retried 4 additional times with a 1 second interval. If all retries fail, the data is still stored in the database and webhook will be dropped.
 It will include a `x-secret` header with the webhook secret from `WEBHOOK_SECRET` environment variable that you should verify on server before trusting the payload
 

@@ -88,37 +88,46 @@ button:hover, .swal-confirm:hover {
     background-color: var(--accent-hover-color);
 }
 
-#health-listeners-count {
+select {
+    background-color: var(--mantle);
+    color: var(--text-color);
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+#health-sources-count {
     color: var(--success-color);
     font-weight: 600;
 }
 
-#listeners-container {
+#sources-container {
     display: flex;
     flex-direction: column;
 }
 
-#listeners-header {
+#sources-header {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
 }
 
-#listeners-list {
+#sources-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(500px, 1000px));
     gap: 15px;
 }
 
-.listener-card {
+.source-card {
     background-color: var(--mantle);
     color: var(--text-color);
     padding: 20px;
     border-radius: 5px;
 }
 
-.listener-controls {
+.source-controls {
     display: flex;
     gap: 8px;
 }
@@ -137,18 +146,18 @@ svg {
     font-weight: bold;
 }
 
-.listener-id {
+.source-id {
     margin: 0;
     font-weight: bold;
     display: inline-block;
 }
 
-.listener-tags {
+.source-tags {
     display: flex;
     gap: 8px;
 }
 
-.listener-tag {
+.source-tag {
     font-weight: bold;
     border: 1px solid #1e1e2e;
     padding: 5px 8px;
@@ -157,7 +166,7 @@ svg {
     display: inline-block;
 }
 
-.listener-attribute {
+.source-attribute {
     font-weight: normal;
 }
 
