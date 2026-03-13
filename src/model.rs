@@ -9,7 +9,7 @@ pub struct PostReaction {
     pub count: Option<String>,
 }
 
-/// DB row for Telegram Post
+/// DB row for Post
 #[derive(FromRow)]
 pub struct PostRow {
     pub id: String,
@@ -21,7 +21,7 @@ pub struct PostRow {
     pub date: String,
 }
 
-/// Telegram post
+/// Post
 #[derive(Serialize, Clone, PartialEq, Debug)]
 pub struct Post {
     pub id: String,
@@ -33,7 +33,7 @@ pub struct Post {
     pub date: Option<String>,
 }
 
-/// Telegram channel counters
+/// Channel counters for post
 ///
 /// Values are strings from channel's page counters (e.g. "1.8M", "1.2k")
 #[derive(Serialize, Debug)]
@@ -44,7 +44,7 @@ pub struct ChannelCounters {
     pub links: Option<String>,
 }
 
-/// Telegram channel
+/// Channel
 #[derive(Serialize, Debug)]
 pub struct Channel {
     pub id: String,
@@ -61,7 +61,7 @@ pub struct WebhookPayload<'a> {
     pub new_posts: &'a [Post],
 }
 
-/// Parsed Telegram channel public page
+/// Parsed page with channel and posts
 #[derive(Serialize, Debug)]
 pub struct Page {
     pub channel: Channel,

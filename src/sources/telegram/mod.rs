@@ -114,7 +114,7 @@ inventory::submit!(SourceRegistration {
 
 inventory::submit!(SourceRegistration {
     kind: KIND_CLIENT,
-    name: "Telegram client",
+    name: "Telegram client (WIP)",
     fields: || schemars::schema_for!(TelegramClientConfig),
     factory: |cfg, tx| Box::pin(async move {
         Ok(Box::new(TelegramSource::new(cfg, tx).await?) as Box<dyn Source + Send>)
