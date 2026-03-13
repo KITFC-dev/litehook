@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use rand::prelude::IndexedRandom;
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 use crate::config;
@@ -80,7 +80,7 @@ async fn create_client() -> anyhow::Result<reqwest::Client> {
             env!("CARGO_PKG_NAME"),
             env!("CARGO_PKG_VERSION")
         ));
-    
+
     // Configure proxy
     if let Some(url) = &config::get_env().proxy_list_url {
         let addr = get_proxy(url).await?;

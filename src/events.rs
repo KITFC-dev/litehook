@@ -92,7 +92,10 @@ impl EventHandler {
             .post(url)
             .header(
                 "x-secret",
-                &config::get_env().webhook_secret.clone().unwrap_or("".to_string()),
+                &config::get_env()
+                    .webhook_secret
+                    .clone()
+                    .unwrap_or("".to_string()),
             )
             .json(&payload)
             .send()

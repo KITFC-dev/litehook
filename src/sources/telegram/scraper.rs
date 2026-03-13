@@ -5,7 +5,7 @@ use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
 use crate::events::Event;
-use crate::sources::{fetch_url, create_client};
+use crate::sources::{create_client, fetch_url};
 
 use super::TelegramScraperConfig;
 use super::parser;
