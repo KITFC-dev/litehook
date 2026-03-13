@@ -57,10 +57,6 @@ impl ElementRefExt for ElementRef<'_> {
     }
 }
 
-pub async fn fetch_html(client: &reqwest::Client, url: &str) -> anyhow::Result<String> {
-    Ok(client.get(url).send().await?.text().await?)
-}
-
 fn parse_counters(container: ElementRef<'_>) -> anyhow::Result<ChannelCounters> {
     let mut data = ChannelCounters {
         subscribers: None,

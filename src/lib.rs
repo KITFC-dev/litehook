@@ -44,6 +44,7 @@ impl Server {
         let (cmd_tx, cmd_rx) = mpsc::channel(100);
         env.validate()?;
         let (event_tx, event_rx) = mpsc::channel(100);
+        config::init_env(env.clone());
 
         let db = db::Db::new(&env.db_path).await?;
 
@@ -87,7 +88,6 @@ impl Server {
         loop {
             tokio::select! {
                 _ = self.shutdown.cancelled() => {
-                    self.get_source_types().await?;
                     self.stop_all().await;
                     break;
                 }
