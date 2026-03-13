@@ -10,8 +10,8 @@ use crate::model::{Channel, Page, Post, WebhookPayload};
 /// Event type
 #[derive(Debug)]
 pub enum Event {
-    NewPost(Post),
     NewPosts(Page, String),
+    SourceFailed(String, String),
 }
 
 pub struct EventHandler {

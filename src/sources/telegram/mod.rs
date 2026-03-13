@@ -13,7 +13,6 @@ pub mod client;
 pub mod parser;
 pub mod scraper;
 
-/// Telegram source kind
 pub const KIND_SCRAPER: &str = "telegram_scraper";
 pub const KIND_CLIENT: &str = "telegram_client";
 

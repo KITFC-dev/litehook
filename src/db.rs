@@ -17,16 +17,18 @@ impl Db {
     /// Creates tables if they don't exist.
     pub async fn new(path: &str) -> anyhow::Result<Self> {
         // Ensure path exists
-        let path_ = std::path::Path::new(path);
-        if let Some(parent) = path_.parent() {
-            tokio::fs::create_dir_all(parent).await?;
+        if path != ":memory:" {
+            let path_ = std::path::Path::new(path);
+            if let Some(parent) = path_.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(path_)
+                .await?;
         }
-        tokio::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(path_)
-            .await?;
 
         // Configure connection pool
         let (url, conns) = if path == "memory" {

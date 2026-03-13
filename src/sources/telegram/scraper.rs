@@ -47,7 +47,7 @@ impl TelegramScraper {
 
     pub async fn stop(&self) -> anyhow::Result<()> {
         let id = self.cfg.read().await.id.clone();
-        tracing::info!("stopping listener {}", id);
+        tracing::info!("stopping listener with id '{}'", id);
         self.shutdown.cancel();
         Ok(())
     }
