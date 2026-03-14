@@ -11,6 +11,7 @@ use crate::model::{Channel, Notification, NtfMap, Page, Post, WebhookPayload};
 #[derive(Debug)]
 pub enum Event {
     NewPosts(Box<Page>, String),
+    Notification(String),
     InputRequest(String, oneshot::Sender<String>),
 }
 
@@ -52,26 +53,28 @@ impl EventHandler {
     pub async fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
         match event {
             Event::NewPosts(page, cfg) => self.handle_new_posts(&page, &cfg).await?,
-            Event::InputRequest(msg, tx) => self.handle_input_request(&msg, tx).await?,
+            Event::Notification(id) => self.handle_notification(&id, None).await?,
+            Event::InputRequest(msg, tx) => self.handle_notification(&msg, Some(tx)).await?,
         }
 
         Ok(())
     }
 
-    pub async fn handle_input_request(
+    pub async fn handle_notification(
         &self,
         msg: &str,
-        tx: oneshot::Sender<String>,
+        tx: Option<oneshot::Sender<String>>,
     ) -> anyhow::Result<()> {
         let id = uuid::Uuid::new_v4().to_string();
-        tracing::info!("sent new input request: {}", id);
+        tracing::info!("sent new notification: {}", id);
         let ntf = Notification {
             id: id.clone(),
             text: msg.to_string(),
-            input: true,
+            input: tx.is_some(),
         };
 
-        self.ntf.lock().await.insert(id, (ntf, Some(tx)));
+        // Insert notification
+        self.ntf.lock().await.insert(id, (ntf, tx));
 
         Ok(())
     }

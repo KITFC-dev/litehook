@@ -62,7 +62,7 @@ impl TelegramClient {
 
         tracing::info!("Recieved: {}", ntf_rx.await?);
 
-        self.stop().await?;
+        self.shutdown.cancel();
         Ok(())
     }
 }
