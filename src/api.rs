@@ -10,11 +10,14 @@ use tower_http::services::ServeDir;
 
 use crate::config::EnvConfig;
 use crate::sources::{SourceConfig, SourceInfo};
-use crate::{Server, model::Health};
+use crate::model::{Health, Notification};
+use crate::{Server};
 
-/// Web API and dashboard for managing [Server] sources.
+/// # Web API and dashboard for managing [Server] sources.
 ///
-/// ### REST Endpoints
+/// ## REST Endpoints
+/// 
+/// ### Sources
 ///
 /// | Method | Path | Handler |
 /// |--------|------|---------|
@@ -23,6 +26,18 @@ use crate::{Server, model::Health};
 /// | `GET` | `/sources/{id}` | [get_source] |
 /// | `PUT` | `/sources/{id}` | [update_source] |
 /// | `DELETE` | `/sources/{id}` | [remove_source] |
+/// 
+/// ### Notifications
+/// 
+/// | Method | Path | Handler |
+/// |--------|------|---------|
+/// | `GET` | `/notifications` | [get_notifications] |
+/// | `POST` | `/notification/{id}` | [reply_notification] |
+/// 
+/// ### Other
+/// 
+/// | Method | Path | Handler |
+/// |--------|------|---------|
 /// | `GET` | `/health` | [health] |
 pub struct Api {
     env: EnvConfig,
@@ -41,12 +56,14 @@ impl Api {
             .allow_headers(Any);
 
         let router = Router::new()
+            .route("/sources/types", get(get_source_types))
             .route("/sources", get(get_all_sources))
             .route("/sources", post(add_source))
             .route("/sources/{id}", get(get_source))
             .route("/sources/{id}", put(update_source))
             .route("/sources/{id}", delete(remove_source))
-            .route("/sources/types", get(get_source_types))
+            .route("/notifications", get(get_notifications))
+            .route("/notifications/{id}", post(reply_notification))
             .route("/health", get(health))
             .fallback_service(ServeDir::new("static"))
             .layer(cors)
@@ -136,6 +153,25 @@ pub async fn remove_source(
 ) -> StatusCode {
     if let Err(e) = server.remove_source(&id).await {
         tracing::error!("failed to remove source: {e}");
+        return StatusCode::INTERNAL_SERVER_ERROR;
+    }
+    StatusCode::OK
+}
+
+pub async fn get_notifications(
+    State(server): State<Arc<Server>>,
+) -> (StatusCode, Json<Vec<Notification>>) {
+    let ntf = server.get_notifications().await;
+    (StatusCode::OK, Json(ntf))
+}
+
+pub async fn reply_notification(
+    State(server): State<Arc<Server>>,
+    Path(id): Path<String>,
+    Json(value): Json<String>,
+) -> StatusCode {
+    if let Err(e) = server.reply_notification(&id, &value).await {
+        tracing::error!("failed to reply notification: {e}");
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
     StatusCode::OK

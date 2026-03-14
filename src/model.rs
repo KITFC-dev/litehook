@@ -68,6 +68,14 @@ pub struct Page {
     pub posts: Vec<Post>,
 }
 
+/// Notification for the web api
+#[derive(Serialize, Clone)]
+pub struct Notification {
+    pub id: String,
+    pub text: String,
+    pub input: bool,
+}
+
 /// Health check result
 #[derive(Serialize)]
 pub struct Health {

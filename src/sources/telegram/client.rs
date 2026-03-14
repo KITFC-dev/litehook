@@ -1,5 +1,6 @@
 use tokio::sync::RwLock;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
 use super::TelegramClientConfig;
@@ -26,10 +27,7 @@ impl TelegramClient {
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
-        let channel_ids: Vec<i64> = {
-            let cfg = self.cfg.read().await;
-            cfg.channels.iter().map(|c| c.id).collect()
-        };
+        let channel_ids = self.cfg.read().await.channels.clone();
         loop {
             tokio::select! {
                 // Shutdown handler
@@ -50,8 +48,19 @@ impl TelegramClient {
         Ok(())
     }
 
-    pub async fn start_listener(&self, channel_ids: Vec<i64>) -> anyhow::Result<()> {
+    pub async fn start_listener(&self, channel_ids: Vec<String>) -> anyhow::Result<()> {
         tracing::info!("starting listening to channels: {:#?}", channel_ids);
+
+        let (ntf_tx, ntf_rx) = oneshot::channel();
+
+        self.tx.send(Event::InputRequest (
+            "This is test, please reply!!".to_string(),
+            ntf_tx
+        )).await?;
+
+        tracing::info!("Recieved: {}", ntf_rx.await?);
+
+        self.stop().await?;
         Ok(())
     }
 }

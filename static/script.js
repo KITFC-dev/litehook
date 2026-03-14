@@ -4,6 +4,7 @@ const mantle = style.getPropertyValue('--mantle').trim();
 const textColor = style.getPropertyValue('--text-color').trim();
 const accentColor = style.getPropertyValue('--accent-color').trim();
 
+const activeNotifications = new Set();
 let SOURCE_TYPES = [];
 
 async function loadSourceTypes() {
@@ -206,6 +207,83 @@ async function addSource() {
     });
 }
 
+async function fetchNotifications() {
+    try {
+        const res = await fetch('/notifications');
+        const notifications = await res.json();
+
+        for (const ntf of notifications) {
+            if (activeNotifications.has(ntf.id)) continue;
+            activeNotifications.add(ntf.id);
+
+            if (ntf.input) {
+                showInputNotification(ntf);
+            } else {
+                showInfoNotification(ntf);
+            }
+        }
+    } catch (err) {
+        console.error('failed to fetch notifications', err);
+    }
+}
+
+async function replyNotification(id, value) {
+    console.log('replying to', id, 'with', value);
+    const res = await fetch(`/notifications/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(value)
+    });
+    console.log('reply status', res.status);
+}
+
+function showInputNotification(ntf) {
+    Swal.fire({
+        customClass: { confirmButton: 'swal-confirm' },
+        title: 'Input Required',
+        background: mantle,
+        color: textColor,
+        confirmButtonColor: accentColor,
+        confirmButtonText: 'Submit',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        html: `
+            <div class="swal2-html-container">
+                <p>${ntf.text}</p>
+                <input id="swal-ntf-input" class="swal2-input" placeholder="Enter value">
+            </div>
+        `,
+        preConfirm: () => {
+            const value = document.getElementById('swal-ntf-input').value;
+            if (!value) {
+                Swal.showValidationMessage('Value is required');
+                return false;
+            }
+            return value;
+        }
+    }).then(async result => {
+        activeNotifications.delete(ntf.id);
+        if (result.isConfirmed) {
+            await replyNotification(ntf.id, result.value);
+        }
+    });
+}
+
+function showInfoNotification(ntf) {
+    Swal.fire({
+        customClass: { confirmButton: 'swal-confirm' },
+        title: 'Notification',
+        background: mantle,
+        color: textColor,
+        confirmButtonColor: accentColor,
+        confirmButtonText: 'Dismiss',
+        html: `<p>${ntf.text}</p>`,
+    }).then(async () => {
+        activeNotifications.delete(ntf.id);
+        await replyNotification(ntf.id, '');
+    });
+}
+
 // Control buttons listener
 document.getElementById('sources-container').addEventListener('click', async (e) => {
     const btn = e.target.closest('button.source-control');
@@ -230,4 +308,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     health();
     setInterval(fetchSources, 5000);
     setInterval(health, 5000);
+    setInterval(fetchNotifications, 1500);
 });

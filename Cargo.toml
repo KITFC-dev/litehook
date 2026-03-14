@@ -11,6 +11,7 @@ reqwest = { version = "0.13", features = ["json", "socks"] }
 serde = { version = "1.0.228", features = ["derive"] }
 tracing-subscriber = { version = "0.3.22", features = ["chrono"] }
 tower-http = { version = "0.6.8", features = ["cors", "fs"] }
+uuid = { version = "1.22.0", features = ["v4"] }
 html-to-markdown-rs = "2"
 axum = "0.8.8"
 inventory = "0.3.22"

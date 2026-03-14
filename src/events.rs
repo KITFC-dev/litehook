@@ -1,31 +1,35 @@
-use reqwest::Client;
-use tokio::sync::mpsc;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
+use reqwest::Client;
 
 use super::config;
 use crate::db::Db;
-use crate::model::{Channel, Page, Post, WebhookPayload};
+use crate::model::{Channel, Page, Post, WebhookPayload, Notification};
 
 /// Event type
 #[derive(Debug)]
 pub enum Event {
     NewPosts(Page, String),
-    SourceFailed(String, String),
+    InputRequest(String, oneshot::Sender<String>),
 }
 
 pub struct EventHandler {
     rx: mpsc::Receiver<Event>,
     db: Db,
+    ntf: Arc<Mutex<HashMap<String, (Notification, Option<oneshot::Sender<String>>)>>>,
     client: Client,
     shutdown: CancellationToken,
 }
 
 impl EventHandler {
-    pub fn new(rx: mpsc::Receiver<Event>, db: Db) -> Self {
+    pub fn new(rx: mpsc::Receiver<Event>, db: Db, ntf: Arc<Mutex<HashMap<String, (Notification, Option<oneshot::Sender<String>>)>>>) -> Self {
         Self {
             rx,
             db,
+            ntf,
             client: Client::new(),
             shutdown: CancellationToken::new(),
         }
@@ -48,12 +52,24 @@ impl EventHandler {
     }
 
     pub async fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
-        #[allow(clippy::single_match)]
         match event {
             Event::NewPosts(page, cfg) => self.handle_new_posts(&page, &cfg).await?,
-
-            _ => (),
+            Event::InputRequest(msg, tx) => self.handle_input_request(&msg, tx).await?,
         }
+
+        Ok(())
+    }
+
+    pub async fn handle_input_request(&self, msg: &str, tx: oneshot::Sender<String>) -> anyhow::Result<()> {
+        let id = uuid::Uuid::new_v4().to_string();
+        tracing::info!("sent new input request: {}", id);
+        let ntf = Notification {
+            id: id.clone(),
+            text: msg.to_string(),
+            input: true,
+        };
+
+        self.ntf.lock().await.insert(id, (ntf, Some(tx)));
 
         Ok(())
     }

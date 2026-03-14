@@ -1,5 +1,5 @@
 use rand::prelude::IndexedRandom;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 use sqlx::FromRow;
 
 use crate::config;
@@ -91,6 +91,32 @@ async fn create_client() -> anyhow::Result<reqwest::Client> {
     Ok(builder.build()?)
 }
 
+/// Helper for fetching URL
 pub async fn fetch_url(client: &reqwest::Client, url: &str) -> anyhow::Result<String> {
     Ok(client.get(url).send().await?.text().await?)
+}
+
+/// Helper for deserializing channels.
+/// 
+/// Channels must be separated by commas.
+pub fn deserialize_channels<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+
+    let channels = raw
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            if s.starts_with("https://") {
+                s.to_string()
+            } else {
+                format!("https://t.me/s/{}", s)
+            }
+        })
+        .collect();
+
+    Ok(channels)
 }

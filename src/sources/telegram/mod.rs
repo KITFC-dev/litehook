@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 
 use crate::events::Event;
 use crate::sources::registry::SourceRegistration;
-use crate::sources::{Source, SourceConfig};
+use crate::sources::{Source, SourceConfig, deserialize_channels};
 
 use self::client::TelegramClient;
 use self::scraper::TelegramScraper;
@@ -37,7 +37,9 @@ pub struct TelegramClientConfig {
     pub api_id: i32,
     pub api_hash: String,
     pub session_file: String,
-    pub channels: Vec<TelegramChannelConfig>,
+
+    #[serde(deserialize_with = "deserialize_channels")]
+    pub channels: Vec<String>,
 }
 
 /// Representation of Telegram channel

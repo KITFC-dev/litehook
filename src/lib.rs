@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 use config::EnvConfig;
@@ -20,7 +20,7 @@ pub struct Server {
     pub shutdown: CancellationToken,
 
     sources: Mutex<HashMap<String, Arc<Box<dyn Source + Send>>>>,
-
+    ntf: Arc<Mutex<HashMap<String, (model::Notification, Option<oneshot::Sender<String>>)>>>,
     db: db::Db,
 
     cmd_tx: mpsc::Sender<SourceCmd>,
@@ -50,6 +50,7 @@ impl Server {
         Ok(Self {
             shutdown: CancellationToken::new(),
             sources: Mutex::new(HashMap::new()),
+            ntf: Arc::new(Mutex::new(HashMap::new())),
             db,
             cmd_tx,
             cmd_rx: Mutex::new(Some(cmd_rx)),
@@ -67,7 +68,7 @@ impl Server {
             .await
             .take()
             .expect("event receiver already taken");
-        let event_handler = EventHandler::new(event_rx, self.db.clone());
+        let event_handler = EventHandler::new(event_rx, self.db.clone(), self.ntf.clone());
         tokio::spawn(async move { event_handler.run().await });
 
         // Load sources from db
@@ -190,6 +191,30 @@ impl Server {
         Ok(sources)
     }
 
+    /// Get all notifications stored on [Server].
+    pub async fn get_notifications(&self) -> Vec<model::Notification> {
+        self.ntf.lock().await
+            .values()
+            .map(|(n, _)| n.clone())
+            .collect()
+    }
+
+    /// Reply to a [model::Notification].
+    pub async fn reply_notification(&self, id: &str, value: &str) -> anyhow::Result<()> {
+        let mut ntf = self.ntf.lock().await;
+
+        // Remove notification
+        let (_, tx) = ntf.remove(id).ok_or_else(|| anyhow::anyhow!("notification not found: {id}"))?;
+
+        // Send reply
+        if let Some(tx) = tx {
+            tx.send(value.to_string()).ok();
+        }
+
+        Ok(())
+    }
+
+    /// Get the health of the [Server].
     pub async fn health(&self) -> anyhow::Result<model::Health> {
         let sources = self.sources.lock().await;
         Ok(model::Health {
