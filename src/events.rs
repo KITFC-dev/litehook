@@ -1,25 +1,23 @@
 use reqwest::Client;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
 
 use super::config;
 use crate::db::Db;
-use crate::model::{Channel, Notification, Page, Post, WebhookPayload};
+use crate::model::{Channel, Notification, Page, Post, WebhookPayload, NtfMap};
 
 /// Event type
 #[derive(Debug)]
 pub enum Event {
-    NewPosts(Page, String),
+    NewPosts(Box<Page>, String),
     InputRequest(String, oneshot::Sender<String>),
 }
 
 pub struct EventHandler {
     rx: mpsc::Receiver<Event>,
     db: Db,
-    ntf: Arc<Mutex<HashMap<String, (Notification, Option<oneshot::Sender<String>>)>>>,
+    ntf: NtfMap,
     client: Client,
     shutdown: CancellationToken,
 }
@@ -28,7 +26,7 @@ impl EventHandler {
     pub fn new(
         rx: mpsc::Receiver<Event>,
         db: Db,
-        ntf: Arc<Mutex<HashMap<String, (Notification, Option<oneshot::Sender<String>>)>>>,
+        ntf: NtfMap,
     ) -> Self {
         Self {
             rx,

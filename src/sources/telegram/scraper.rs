@@ -79,7 +79,7 @@ impl TelegramScraper {
         };
 
         let webhook_url = self.cfg.read().await.webhook_url.clone();
-        self.tx.send(Event::NewPosts(page, webhook_url)).await?;
+        self.tx.send(Event::NewPosts(Box::new(page), webhook_url)).await?;
 
         Ok(())
     }

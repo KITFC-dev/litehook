@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::sync::{Mutex, mpsc};
 use tokio_util::sync::CancellationToken;
 
 use config::EnvConfig;
@@ -20,7 +20,7 @@ pub struct Server {
     pub shutdown: CancellationToken,
 
     sources: Mutex<HashMap<String, Arc<Box<dyn Source + Send>>>>,
-    ntf: Arc<Mutex<HashMap<String, (model::Notification, Option<oneshot::Sender<String>>)>>>,
+    ntf: model::NtfMap,
     db: db::Db,
 
     cmd_tx: mpsc::Sender<SourceCmd>,
