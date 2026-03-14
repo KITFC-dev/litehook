@@ -193,7 +193,9 @@ impl Server {
 
     /// Get all notifications stored on [Server].
     pub async fn get_notifications(&self) -> Vec<model::Notification> {
-        self.ntf.lock().await
+        self.ntf
+            .lock()
+            .await
             .values()
             .map(|(n, _)| n.clone())
             .collect()
@@ -204,7 +206,9 @@ impl Server {
         let mut ntf = self.ntf.lock().await;
 
         // Remove notification
-        let (_, tx) = ntf.remove(id).ok_or_else(|| anyhow::anyhow!("notification not found: {id}"))?;
+        let (_, tx) = ntf
+            .remove(id)
+            .ok_or_else(|| anyhow::anyhow!("notification not found: {id}"))?;
 
         // Send reply
         if let Some(tx) = tx {

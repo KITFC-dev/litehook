@@ -1,13 +1,13 @@
+use reqwest::Client;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::{Duration, sleep};
 use tokio_util::sync::CancellationToken;
-use reqwest::Client;
 
 use super::config;
 use crate::db::Db;
-use crate::model::{Channel, Page, Post, WebhookPayload, Notification};
+use crate::model::{Channel, Notification, Page, Post, WebhookPayload};
 
 /// Event type
 #[derive(Debug)]
@@ -25,7 +25,11 @@ pub struct EventHandler {
 }
 
 impl EventHandler {
-    pub fn new(rx: mpsc::Receiver<Event>, db: Db, ntf: Arc<Mutex<HashMap<String, (Notification, Option<oneshot::Sender<String>>)>>>) -> Self {
+    pub fn new(
+        rx: mpsc::Receiver<Event>,
+        db: Db,
+        ntf: Arc<Mutex<HashMap<String, (Notification, Option<oneshot::Sender<String>>)>>>,
+    ) -> Self {
         Self {
             rx,
             db,
@@ -60,7 +64,11 @@ impl EventHandler {
         Ok(())
     }
 
-    pub async fn handle_input_request(&self, msg: &str, tx: oneshot::Sender<String>) -> anyhow::Result<()> {
+    pub async fn handle_input_request(
+        &self,
+        msg: &str,
+        tx: oneshot::Sender<String>,
+    ) -> anyhow::Result<()> {
         let id = uuid::Uuid::new_v4().to_string();
         tracing::info!("sent new input request: {}", id);
         let ntf = Notification {

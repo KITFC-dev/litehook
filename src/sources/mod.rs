@@ -1,5 +1,5 @@
 use rand::prelude::IndexedRandom;
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::FromRow;
 
 use crate::config;
@@ -97,7 +97,7 @@ pub async fn fetch_url(client: &reqwest::Client, url: &str) -> anyhow::Result<St
 }
 
 /// Helper for deserializing channels.
-/// 
+///
 /// Channels must be separated by commas.
 pub fn deserialize_channels<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where

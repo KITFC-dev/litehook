@@ -53,10 +53,12 @@ impl TelegramClient {
 
         let (ntf_tx, ntf_rx) = oneshot::channel();
 
-        self.tx.send(Event::InputRequest (
-            "This is test, please reply!!".to_string(),
-            ntf_tx
-        )).await?;
+        self.tx
+            .send(Event::InputRequest(
+                "This is test, please reply!!".to_string(),
+                ntf_tx,
+            ))
+            .await?;
 
         tracing::info!("Recieved: {}", ntf_rx.await?);
 

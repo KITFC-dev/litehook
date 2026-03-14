@@ -8,15 +8,15 @@ use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
+use crate::Server;
 use crate::config::EnvConfig;
-use crate::sources::{SourceConfig, SourceInfo};
 use crate::model::{Health, Notification};
-use crate::{Server};
+use crate::sources::{SourceConfig, SourceInfo};
 
 /// # Web API and dashboard for managing [Server] sources.
 ///
 /// ## REST Endpoints
-/// 
+///
 /// ### Sources
 ///
 /// | Method | Path | Handler |
@@ -26,16 +26,16 @@ use crate::{Server};
 /// | `GET` | `/sources/{id}` | [get_source] |
 /// | `PUT` | `/sources/{id}` | [update_source] |
 /// | `DELETE` | `/sources/{id}` | [remove_source] |
-/// 
+///
 /// ### Notifications
-/// 
+///
 /// | Method | Path | Handler |
 /// |--------|------|---------|
 /// | `GET` | `/notifications` | [get_notifications] |
 /// | `POST` | `/notification/{id}` | [reply_notification] |
-/// 
+///
 /// ### Other
-/// 
+///
 /// | Method | Path | Handler |
 /// |--------|------|---------|
 /// | `GET` | `/health` | [health] |
