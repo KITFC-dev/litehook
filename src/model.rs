@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use tokio::sync::{Mutex, oneshot};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use sqlx::types::Json;
+use tokio::sync::{Mutex, oneshot};
 
 pub type NtfMap = Arc<Mutex<HashMap<String, (Notification, Option<oneshot::Sender<String>>)>>>;
 

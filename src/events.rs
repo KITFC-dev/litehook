@@ -5,7 +5,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::config;
 use crate::db::Db;
-use crate::model::{Channel, Notification, Page, Post, WebhookPayload, NtfMap};
+use crate::model::{Channel, Notification, NtfMap, Page, Post, WebhookPayload};
 
 /// Event type
 #[derive(Debug)]
@@ -23,11 +23,7 @@ pub struct EventHandler {
 }
 
 impl EventHandler {
-    pub fn new(
-        rx: mpsc::Receiver<Event>,
-        db: Db,
-        ntf: NtfMap,
-    ) -> Self {
+    pub fn new(rx: mpsc::Receiver<Event>, db: Db, ntf: NtfMap) -> Self {
         Self {
             rx,
             db,
