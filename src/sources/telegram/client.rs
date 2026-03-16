@@ -18,7 +18,7 @@ pub struct TelegramClient {
 
 impl TelegramClient {
     pub async fn new(cfg: TelegramClientConfig, tx: mpsc::Sender<Event>) -> anyhow::Result<Self> {
-        tracing::info!("initializing listener {}", cfg.id);
+        tracing::info!("initializing client {}", cfg.id);
         Ok(Self {
             cfg: Arc::new(RwLock::new(cfg)),
             tx,
@@ -43,7 +43,7 @@ impl TelegramClient {
 
     pub async fn stop(&self) -> anyhow::Result<()> {
         let id = self.cfg.read().await.id.clone();
-        tracing::info!("stopping listener with id {}", id);
+        tracing::info!("stopping client with id {}", id);
         self.shutdown.cancel();
         Ok(())
     }
