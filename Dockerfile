@@ -1,36 +1,33 @@
 # Build stage
+FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 FROM --platform=$BUILDPLATFORM rust:1.93.0-bookworm AS builder
 WORKDIR /usr/src/litehook
+
+# Copy xx scripts
+COPY --from=xx / /
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
+# Install deps
 RUN apt-get update && apt-get install -y \
-    xz-utils \
     ca-certificates \
     llvm \
+    clang \
+    lld \
+    gcc-aarch64-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
+RUN xx-apt-get install -y libc6-dev gcc-12 libgcc-12-dev
 
-# Install zig
-RUN curl -fsSL https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz \
-    | tar -xJ -C /usr/local && \
-    ln -s /usr/local/zig-linux-x86_64-0.13.0/zig /usr/local/bin/zig
-RUN cargo install cargo-zigbuild
-
-RUN rustup target add x86_64-unknown-linux-musl aarch64-unknown-linux-musl
+RUN rustup target add $(xx-cargo --print-target-triple)
 
 COPY . .
 
 # Build
-RUN case "$TARGETPLATFORM" in \
-    # ARM
-    "linux/arm64") TARGET="aarch64-unknown-linux-musl" ;; \
-    # Anything else
-    *) TARGET="x86_64-unknown-linux-musl" ;; \
-    esac && \
-    cargo zigbuild --release --target "$TARGET" && \
-    llvm-strip "target/$TARGET/release/litehook" && \
-    cp "target/$TARGET/release/litehook" /litehook-out
+RUN xx-cargo build --release --target-dir ./build && \
+    xx-verify ./build/$(xx-cargo --print-target-triple)/release/litehook && \
+    llvm-strip ./build/$(xx-cargo --print-target-triple)/release/litehook && \
+    cp ./build/$(xx-cargo --print-target-triple)/release/litehook /litehook-out
 
 # Runtime stage
 FROM cgr.dev/chainguard/static
