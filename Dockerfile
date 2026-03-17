@@ -8,6 +8,11 @@ COPY --from=xx / /
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+# xx should use musl
+ENV XX_LIBC=musl
+# fix sqlite linker error with musl,
+# this is temporary, as this disables large file support
+ENV CFLAGS="-DSQLITE_DISABLE_LFS"
 
 # Install deps
 RUN apt-get update && apt-get install -y \
@@ -15,9 +20,8 @@ RUN apt-get update && apt-get install -y \
     llvm \
     clang \
     lld \
-    gcc-aarch64-linux-gnu \
     && rm -rf /var/lib/apt/lists/*
-RUN xx-apt-get install -y libc6-dev gcc-12 libgcc-12-dev
+RUN xx-apt-get install -y musl-dev musl-tools zlib1g-dev
 
 RUN rustup target add $(xx-cargo --print-target-triple)
 
