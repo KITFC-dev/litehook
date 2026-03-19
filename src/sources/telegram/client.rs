@@ -1,10 +1,10 @@
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio_util::sync::CancellationToken;
 
 use super::TelegramClientConfig;
-use crate::Arc;
 use crate::events::Event;
 
 pub struct TelegramClient {
