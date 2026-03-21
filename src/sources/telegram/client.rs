@@ -1,13 +1,13 @@
 //! This code is based on this example from tgt:
 //! https://github.com/FedericoBruzzone/tgt/blob/main/examples/telegram.rs
 
+use tdlib_rs::{
+    enums::{AuthorizationState, MessageContent, Update},
+    functions,
+};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_util::sync::CancellationToken;
-use tdlib_rs::{
-    enums::{AuthorizationState, Update, MessageContent},
-    functions
-};
 
 use super::TelegramClientConfig;
 use crate::events::Event;
@@ -71,7 +71,10 @@ impl TelegramClient {
                             // MessageText for now.
                             // TODO: add video, audio, image messages etc.
                             if let MessageContent::MessageText(text) = &msg.content {
-                                let _ = tx.blocking_send(Event::NewMessage(msg.chat_id, text.text.text.clone()));
+                                let _ = tx.blocking_send(Event::NewMessage(
+                                    msg.chat_id,
+                                    text.text.text.clone(),
+                                ));
                             }
                         }
                         _ => {}
@@ -102,7 +105,10 @@ impl TelegramClient {
             db_dir,
             files_dir,
             String::new(),
-            true, true, true, false,
+            true,
+            true,
+            true,
+            false,
             self.cfg.api_id,
             self.cfg.api_hash.clone(),
             "en".to_string(),
@@ -146,29 +152,49 @@ impl TelegramClient {
                     );
                     loop {
                         let (ntf_tx, ntf_rx) = tokio::sync::oneshot::channel();
-                        if self.tx.send(Event::InputRequest(
-                            "Enter Telegram code:".to_string(), ntf_tx,
-                        )).await.is_err() { break; }
-                        let code = match ntf_rx.await { Ok(c) => c, Err(_) => break };
+                        if self
+                            .tx
+                            .send(Event::InputRequest(
+                                "Enter Telegram code:".to_string(),
+                                ntf_tx,
+                            ))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                        let code = match ntf_rx.await {
+                            Ok(c) => c,
+                            Err(_) => break,
+                        };
                         match functions::check_authentication_code(code, self.client_id).await {
                             Ok(_) => break,
                             Err(e) => tracing::error!("code error: {}", e.message),
                         }
                     }
                 }
-                AuthorizationState::WaitPassword(_) => {
-                    loop {
-                        let (ntf_tx, ntf_rx) = tokio::sync::oneshot::channel();
-                        if self.tx.send(Event::InputRequest(
-                            "Enter 2FA password:".to_string(), ntf_tx,
-                        )).await.is_err() { break; }
-                        let pw = match ntf_rx.await { Ok(p) => p, Err(_) => break };
-                        match functions::check_authentication_password(pw, self.client_id).await {
-                            Ok(_) => break,
-                            Err(e) => tracing::error!("2fa error: {}", e.message),
-                        }
+                AuthorizationState::WaitPassword(_) => loop {
+                    let (ntf_tx, ntf_rx) = tokio::sync::oneshot::channel();
+                    if self
+                        .tx
+                        .send(Event::InputRequest(
+                            "Enter 2FA password:".to_string(),
+                            ntf_tx,
+                        ))
+                        .await
+                        .is_err()
+                    {
+                        break;
                     }
-                }
+                    let pw = match ntf_rx.await {
+                        Ok(p) => p,
+                        Err(_) => break,
+                    };
+                    match functions::check_authentication_password(pw, self.client_id).await {
+                        Ok(_) => break,
+                        Err(e) => tracing::error!("2fa error: {}", e.message),
+                    }
+                },
                 AuthorizationState::Ready => break,
                 AuthorizationState::Closed => {
                     self.shutdown.cancel();

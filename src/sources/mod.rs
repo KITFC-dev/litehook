@@ -124,11 +124,9 @@ pub fn deserialize_items<'de, D>(deserializer: D) -> Result<Vec<String>, D::Erro
 where
     D: Deserializer<'de>,
 {
-    Ok(
-        String::deserialize(deserializer)?
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
-    )
+    Ok(String::deserialize(deserializer)?
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect())
 }
