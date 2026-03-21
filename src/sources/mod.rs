@@ -96,19 +96,17 @@ pub async fn fetch_url(client: &reqwest::Client, url: &str) -> anyhow::Result<St
     Ok(client.get(url).send().await?.text().await?)
 }
 
-/// Helper for deserializing channels.
+/// Helper for deserializing channels separated by commas.
 ///
-/// Channels must be separated by commas.
-pub fn deserialize_channels<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+/// Outputs urls of channels, like this: https://t.me/s/channel
+pub fn deserialize_channels_url<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let raw = String::deserialize(deserializer)?;
+    let items = deserialize_items(deserializer)?;
 
-    let channels = raw
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
+    let channels = items
+        .into_iter()
         .map(|s| {
             if s.starts_with("https://") {
                 s.to_string()
@@ -119,4 +117,18 @@ where
         .collect();
 
     Ok(channels)
+}
+
+/// Helper for deserializing items separated by commas.
+pub fn deserialize_items<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(
+        String::deserialize(deserializer)?
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    )
 }

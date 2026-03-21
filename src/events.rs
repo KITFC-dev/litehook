@@ -63,7 +63,7 @@ impl EventHandler {
     }
 
     pub async fn handle_new_message(&self, chat_id: i64, text: &str) -> anyhow::Result<()> {
-        tracing::info!("[chat {}] new message: {}", chat_id, text);
+        tracing::info!("[{}] new message: {}", chat_id, text);
         Ok(())
     }
 

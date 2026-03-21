@@ -26,3 +26,4 @@ anyhow = "1.0"
 tracing = "0.1.44"
 dotenvy = "0.15.7"
 envy = "0.4.2"
+tdlib-rs = { version = "1.3.0", features = ["download-tdlib"] }

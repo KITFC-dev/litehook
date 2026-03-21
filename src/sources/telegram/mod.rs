@@ -1,10 +1,11 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 
 use crate::events::Event;
 use crate::sources::registry::SourceRegistration;
-use crate::sources::{Source, SourceConfig, deserialize_channels};
+use crate::sources::{Source, SourceConfig, deserialize_items};
 
 use self::client::TelegramClient;
 use self::scraper::TelegramScraper;
@@ -18,7 +19,7 @@ pub const KIND_CLIENT: &str = "telegram_client";
 
 pub enum TelegramSourceKind {
     Scraper(TelegramScraper),
-    Client(TelegramClient),
+    Client(Mutex<TelegramClient>),
 }
 
 /// Config for Telegram scraper
@@ -38,8 +39,8 @@ pub struct TelegramClientConfig {
     pub api_hash: String,
     pub phone_number: String,
 
-    #[serde(deserialize_with = "deserialize_channels")]
-    pub channels: Vec<String>,
+    #[serde(deserialize_with = "deserialize_items")]
+    pub channel_ids: Vec<String>,
 }
 
 /// Representation of Telegram channel
@@ -67,7 +68,7 @@ impl TelegramSource {
             }
             KIND_CLIENT => {
                 let client_cfg: TelegramClientConfig = serde_json::from_value(cfg.raw.clone())?;
-                TelegramSourceKind::Client(TelegramClient::new(client_cfg, tx).await?)
+                TelegramSourceKind::Client(Mutex::new(TelegramClient::new(client_cfg, tx)))
             }
             other => anyhow::bail!("unknown telegram kind: {other}"),
         };
@@ -92,14 +93,14 @@ impl Source for TelegramSource {
     async fn run(&self) -> anyhow::Result<()> {
         match &self.kind {
             TelegramSourceKind::Scraper(scraper) => scraper.run().await,
-            TelegramSourceKind::Client(client) => client.run().await,
+            TelegramSourceKind::Client(client) => client.lock().await.run().await,
         }
     }
 
     async fn stop(&self) -> anyhow::Result<()> {
         match &self.kind {
             TelegramSourceKind::Scraper(scraper) => scraper.stop().await,
-            TelegramSourceKind::Client(client) => client.stop().await,
+            TelegramSourceKind::Client(client) => client.lock().await.stop().await,
         }
     }
 }
