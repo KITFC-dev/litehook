@@ -62,13 +62,8 @@ impl EventHandler {
         Ok(())
     }
 
-    pub async fn handle_new_post(&self, url: &String, post: &Post) -> anyhow::Result<()> {
-        self.send_webhook_raw_retry(
-            &url,
-            &post,
-            5
-        )
-        .await?;
+    pub async fn handle_new_post(&self, url: &str, post: &Post) -> anyhow::Result<()> {
+        self.send_webhook_raw_retry(url, &post, 5).await?;
         Ok(())
     }
 
@@ -112,11 +107,7 @@ impl EventHandler {
         Ok(())
     }
 
-    async fn send_webhook_raw<T>(
-        &self,
-        url: &str,
-        data: T,
-    ) -> anyhow::Result<reqwest::Response>
+    async fn send_webhook_raw<T>(&self, url: &str, data: T) -> anyhow::Result<reqwest::Response>
     where
         T: serde::Serialize,
     {
@@ -125,10 +116,7 @@ impl EventHandler {
             .post(url)
             .header(
                 "x-secret",
-                &config::get_env()
-                    .webhook_secret
-                    .clone()
-                    .unwrap_or_default(),
+                &config::get_env().webhook_secret.clone().unwrap_or_default(),
             )
             .json(&data)
             .send()

@@ -72,42 +72,58 @@ impl TelegramClient {
 
                             // Get author
                             let author_id = match &msg.sender_id {
-                                tdlib_rs::enums::MessageSender::User(u) => Some(u.user_id.to_string()),
-                                tdlib_rs::enums::MessageSender::Chat(c) => Some(c.chat_id.to_string()),
+                                tdlib_rs::enums::MessageSender::User(u) => {
+                                    Some(u.user_id.to_string())
+                                }
+                                tdlib_rs::enums::MessageSender::Chat(c) => {
+                                    Some(c.chat_id.to_string())
+                                }
                             };
 
                             // Send message to event handler
                             match &msg.content {
                                 MessageContent::MessageText(m) => {
-                                    let _ = tx.blocking_send(Event::NewMessage(webhook_url.clone(),
-                                    Post {
-                                        id: msg.chat_id.to_string(),
-                                        author: author_id,
-                                        text: Some(m.text.text.clone()),
-                                        ..Default::default()
-                                    }));
+                                    let _ = tx.blocking_send(Event::NewMessage(
+                                        webhook_url.clone(),
+                                        Post {
+                                            id: msg.chat_id.to_string(),
+                                            author: author_id,
+                                            text: Some(m.text.text.clone()),
+                                            ..Default::default()
+                                        },
+                                    ));
                                 }
 
                                 MessageContent::MessagePhoto(m) => {
-                                    let _ = tx.blocking_send(Event::NewMessage(webhook_url.clone(),
-                                    Post {
-                                        id: msg.chat_id.to_string(),
-                                        author: author_id,
-                                        text: Some(m.caption.text.clone()),
-                                        media: Some(m.photo.sizes.iter().map(|s| s.photo.id.to_string()).collect()),
-                                        ..Default::default()
-                                    }));
+                                    let _ = tx.blocking_send(Event::NewMessage(
+                                        webhook_url.clone(),
+                                        Post {
+                                            id: msg.chat_id.to_string(),
+                                            author: author_id,
+                                            text: Some(m.caption.text.clone()),
+                                            media: Some(
+                                                m.photo
+                                                    .sizes
+                                                    .iter()
+                                                    .map(|s| s.photo.id.to_string())
+                                                    .collect(),
+                                            ),
+                                            ..Default::default()
+                                        },
+                                    ));
                                 }
 
                                 MessageContent::MessageVideo(m) => {
-                                    let _ = tx.blocking_send(Event::NewMessage(webhook_url.clone(), 
-                                    Post {
-                                        id: msg.chat_id.to_string(),
-                                        author: author_id,
-                                        text: Some(m.caption.text.clone()),
-                                        media: Some(vec![m.video.video.id.to_string()]),
-                                        ..Default::default()
-                                    }));
+                                    let _ = tx.blocking_send(Event::NewMessage(
+                                        webhook_url.clone(),
+                                        Post {
+                                            id: msg.chat_id.to_string(),
+                                            author: author_id,
+                                            text: Some(m.caption.text.clone()),
+                                            media: Some(vec![m.video.video.id.to_string()]),
+                                            ..Default::default()
+                                        },
+                                    ));
                                 }
 
                                 _ => {}
