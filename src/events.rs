@@ -11,7 +11,7 @@ use crate::model::{Channel, Notification, NtfMap, Page, Post, WebhookPayload};
 #[derive(Debug)]
 pub enum Event {
     NewPosts(Box<Page>, String),
-    NewMessage(Post),
+    NewMessage(String, Post),
     Notification(String),
     InputRequest(String, oneshot::Sender<String>),
 }
@@ -54,7 +54,7 @@ impl EventHandler {
     pub async fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
         match event {
             Event::NewPosts(page, cfg) => self.handle_new_posts(&page, &cfg).await?,
-            Event::NewMessage(post) => self.handle_new_post(&post).await?,
+            Event::NewMessage(url, post) => self.handle_new_post(&url, &post).await?,
             Event::Notification(id) => self.handle_notification(&id, None).await?,
             Event::InputRequest(msg, tx) => self.handle_notification(&msg, Some(tx)).await?,
         }
@@ -62,8 +62,13 @@ impl EventHandler {
         Ok(())
     }
 
-    pub async fn handle_new_post(&self, post: &Post) -> anyhow::Result<()> {
-        tracing::info!("{:#?}", post);
+    pub async fn handle_new_post(&self, url: &String, post: &Post) -> anyhow::Result<()> {
+        self.send_webhook_raw_retry(
+            &url,
+            &post,
+            5
+        )
+        .await?;
         Ok(())
     }
 
@@ -105,6 +110,58 @@ impl EventHandler {
         }
 
         Ok(())
+    }
+
+    async fn send_webhook_raw<T>(
+        &self,
+        url: &str,
+        data: T,
+    ) -> anyhow::Result<reqwest::Response>
+    where
+        T: serde::Serialize,
+    {
+        let res = self
+            .client
+            .post(url)
+            .header(
+                "x-secret",
+                &config::get_env()
+                    .webhook_secret
+                    .clone()
+                    .unwrap_or_default(),
+            )
+            .json(&data)
+            .send()
+            .await?;
+
+        if !res.status().is_success() {
+            return Err(anyhow::anyhow!(res.status().to_string()));
+        }
+
+        Ok(res)
+    }
+
+    async fn send_webhook_raw_retry<T>(
+        &self,
+        url: &str,
+        data: T,
+        max_retries: u64,
+    ) -> anyhow::Result<reqwest::Response>
+    where
+        T: serde::Serialize + Clone,
+    {
+        for att in 1..=max_retries {
+            match self.send_webhook_raw(url, data.clone()).await {
+                Ok(res) => return Ok(res),
+                Err(e) if att < max_retries => {
+                    tracing::error!("failed to send webhook: {e}, retrying in 5s");
+                    sleep(Duration::from_secs(5)).await;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Err(anyhow::anyhow!("failed to send webhook"))
     }
 
     async fn send_webhook(

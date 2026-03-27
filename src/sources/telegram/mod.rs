@@ -38,6 +38,7 @@ pub struct TelegramClientConfig {
     pub api_id: i32,
     pub api_hash: String,
     pub phone_number: String,
+    pub webhook_url: String,
 
     #[serde(deserialize_with = "deserialize_items")]
     pub channel_ids: Vec<String>,

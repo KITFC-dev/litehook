@@ -44,6 +44,7 @@ impl TelegramClient {
         let shutdown = self.shutdown.clone();
         let client_id = self.client_id;
         let tx = self.tx.clone();
+        let webhook_url = self.cfg.webhook_url.clone();
         let channels = self.cfg.channel_ids.clone();
 
         // Spawn blocking because TDLib's tdlib_rs::receive() is a blocking function.
@@ -78,7 +79,8 @@ impl TelegramClient {
                             // Send message to event handler
                             match &msg.content {
                                 MessageContent::MessageText(m) => {
-                                    let _ = tx.blocking_send(Event::NewMessage(Post {
+                                    let _ = tx.blocking_send(Event::NewMessage(webhook_url.clone(),
+                                    Post {
                                         id: msg.chat_id.to_string(),
                                         author: author_id,
                                         text: Some(m.text.text.clone()),
@@ -87,7 +89,8 @@ impl TelegramClient {
                                 }
 
                                 MessageContent::MessagePhoto(m) => {
-                                    let _ = tx.blocking_send(Event::NewMessage(Post {
+                                    let _ = tx.blocking_send(Event::NewMessage(webhook_url.clone(),
+                                    Post {
                                         id: msg.chat_id.to_string(),
                                         author: author_id,
                                         text: Some(m.caption.text.clone()),
@@ -97,7 +100,8 @@ impl TelegramClient {
                                 }
 
                                 MessageContent::MessageVideo(m) => {
-                                    let _ = tx.blocking_send(Event::NewMessage(Post {
+                                    let _ = tx.blocking_send(Event::NewMessage(webhook_url.clone(), 
+                                    Post {
                                         id: msg.chat_id.to_string(),
                                         author: author_id,
                                         text: Some(m.caption.text.clone()),
