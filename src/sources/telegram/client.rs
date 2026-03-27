@@ -10,7 +10,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio_util::sync::CancellationToken;
 
 use super::TelegramClientConfig;
-use crate::events::Event;
+use crate::{events::Event, model::Post};
 
 pub struct TelegramClient {
     pub cfg: TelegramClientConfig,
@@ -64,17 +64,49 @@ impl TelegramClient {
                             let msg = &u.message;
                             let chat_id = msg.chat_id.to_string();
 
-                            if !channels.contains(&chat_id) {
+                            // Check if its the message we want
+                            if !channels.contains(&chat_id) || msg.is_outgoing {
                                 continue;
                             }
 
-                            // MessageText for now.
-                            // TODO: add video, audio, image messages etc.
-                            if let MessageContent::MessageText(text) = &msg.content {
-                                let _ = tx.blocking_send(Event::NewMessage(
-                                    msg.chat_id,
-                                    text.text.text.clone(),
-                                ));
+                            // Get author
+                            let author_id = match &msg.sender_id {
+                                tdlib_rs::enums::MessageSender::User(u) => Some(u.user_id.to_string()),
+                                tdlib_rs::enums::MessageSender::Chat(c) => Some(c.chat_id.to_string()),
+                            };
+
+                            // Send message to event handler
+                            match &msg.content {
+                                MessageContent::MessageText(m) => {
+                                    let _ = tx.blocking_send(Event::NewMessage(Post {
+                                        id: msg.chat_id.to_string(),
+                                        author: author_id,
+                                        text: Some(m.text.text.clone()),
+                                        ..Default::default()
+                                    }));
+                                }
+
+                                MessageContent::MessagePhoto(m) => {
+                                    let _ = tx.blocking_send(Event::NewMessage(Post {
+                                        id: msg.chat_id.to_string(),
+                                        author: author_id,
+                                        text: Some(m.caption.text.clone()),
+                                        media: Some(m.photo.sizes.iter().map(|s| s.photo.id.to_string()).collect()),
+                                        ..Default::default()
+                                    }));
+                                }
+
+                                MessageContent::MessageVideo(m) => {
+                                    let _ = tx.blocking_send(Event::NewMessage(Post {
+                                        id: msg.chat_id.to_string(),
+                                        author: author_id,
+                                        text: Some(m.caption.text.clone()),
+                                        media: Some(vec![m.video.video.id.to_string()]),
+                                        ..Default::default()
+                                    }));
+                                }
+
+                                _ => {}
                             }
                         }
                         _ => {}

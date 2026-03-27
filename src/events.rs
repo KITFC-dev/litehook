@@ -11,7 +11,7 @@ use crate::model::{Channel, Notification, NtfMap, Page, Post, WebhookPayload};
 #[derive(Debug)]
 pub enum Event {
     NewPosts(Box<Page>, String),
-    NewMessage(i64, String),
+    NewMessage(Post),
     Notification(String),
     InputRequest(String, oneshot::Sender<String>),
 }
@@ -54,7 +54,7 @@ impl EventHandler {
     pub async fn handle_event(&mut self, event: Event) -> anyhow::Result<()> {
         match event {
             Event::NewPosts(page, cfg) => self.handle_new_posts(&page, &cfg).await?,
-            Event::NewMessage(chat_id, text) => self.handle_new_message(chat_id, &text).await?,
+            Event::NewMessage(post) => self.handle_new_post(&post).await?,
             Event::Notification(id) => self.handle_notification(&id, None).await?,
             Event::InputRequest(msg, tx) => self.handle_notification(&msg, Some(tx)).await?,
         }
@@ -62,8 +62,8 @@ impl EventHandler {
         Ok(())
     }
 
-    pub async fn handle_new_message(&self, chat_id: i64, text: &str) -> anyhow::Result<()> {
-        tracing::info!("[{}] new message: {}", chat_id, text);
+    pub async fn handle_new_post(&self, post: &Post) -> anyhow::Result<()> {
+        tracing::info!("{:#?}", post);
         Ok(())
     }
 

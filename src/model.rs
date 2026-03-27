@@ -28,7 +28,7 @@ pub struct PostRow {
 }
 
 /// Post
-#[derive(Serialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Clone, PartialEq, Debug, Default)]
 pub struct Post {
     pub id: String,
     pub author: Option<String>,
