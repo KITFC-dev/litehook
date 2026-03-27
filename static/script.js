@@ -82,7 +82,10 @@ async function fetchSources() {
 
                 <div class="card-body">
                     ${fields.map(f => `
-                        <p class="source-attribute">${f.label}: ${raw[f.id] ?? '—'}</p>
+                        <div>
+                            <span class="source-attribute">${f.label}:</span>
+                            <span class="spoiler">${raw[f.id] ?? '—'}</span>
+                        </div>
                     `).join('')}
                 </div>
                 

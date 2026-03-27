@@ -5,6 +5,7 @@
     --a-color: #1e66f5;
 
     --mantle: #e6e9ef;
+    --crust: #dce0e8;
 
     --accent-color: #8839ef;
     --accent-hover-color: #7287fd;
@@ -22,6 +23,7 @@
         --a-color: #89b4fa;
 
         --mantle: #181825;
+        --crust: #11111b;
 
         --accent-color: #cba6f7;
         --accent-hover-color: #b4befe;
@@ -95,6 +97,17 @@ select {
     border-radius: 5px;
     cursor: pointer;
     font-weight: bold;
+}
+
+.spoiler {
+  background-color: var(--crust);
+  border-radius: 6px;
+  color: transparent;
+  cursor: pointer;
+}
+
+.spoiler:hover {
+  color: var(--text-color);
 }
 
 #health-sources-count {
