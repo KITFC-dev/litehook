@@ -12,6 +12,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libc++1 libc++abi1
       - uses: dtolnay/rust-toolchain@stable
         with:
           profile: minimal
