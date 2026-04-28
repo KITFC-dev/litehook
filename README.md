@@ -6,6 +6,8 @@ Litehook is a self-hosted social media monitoring tool and webhook server. Suppo
 
 ## Overview
 
+![Dashboard Screenshot](https://10ku.net/litehook/demo/dashboard-v3.0.png)
+
 | Platform | Scraper Support | Self-Bot Support |
 | -------- | --------------- | ---------------- |
 | Telegram | ✅              | ✅               |
