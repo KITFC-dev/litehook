@@ -24,7 +24,7 @@ docker compose up -d
 
 ### Build from Source
 
-Clone the repository or download from [releases](https://github.com/KITFC-dev/litehook/releases/latest) and compile the binary with:
+Download from [releases](https://github.com/KITFC-dev/litehook/releases/latest) or clone the repository and compile the binary with:
 
 ```bash
 git clone https://github.com/KITFC-dev/litehook.git
