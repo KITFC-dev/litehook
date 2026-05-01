@@ -22,10 +22,10 @@ cd litehook
 docker compose up -d
 ```
 
+If you want to build the binary from source, see [build](#build) section.
+
 > [!TIP]
 > After that use the dashboard at <http://localhost:4101/> to configure the sources. Make sure you have the `static` folder in the same directory as the litehook binary.
-> [!NOTE]
-> If you want to build the binary from source, see [Build](#build) section.
 
 ## How it works
 
