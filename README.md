@@ -1,12 +1,12 @@
 # ![Litehook Thumbnail](https://10ku.net/litehook/thumbnail.png)
 
-## Litehook
+## Overview
 
 Litehook is a self-hosted social media monitoring tool and webhook server. Supports public channels or private channels and even DMs if you use a self-bot. It has support for SOCKS proxies, Docker deployment, and includes a lightweight web dashboard.
 
-## Overview
-
 ![Dashboard Screenshot](https://10ku.net/litehook/demo/dashboard-v3.0.png)
+
+## Features
 
 | Platform | Scraper Support | Self-Bot Support |
 | -------- | --------------- | ---------------- |
@@ -22,18 +22,10 @@ cd litehook
 docker compose up -d
 ```
 
-### Build from Source
-
-Download from [releases](https://github.com/KITFC-dev/litehook/releases/latest) or clone the repository and compile the binary with:
-
-```bash
-git clone https://github.com/KITFC-dev/litehook.git
-cd litehook
-cargo run
-```
-
+> [!TIP]
+> After that use the dashboard at <http://localhost:4101/> to configure the sources. Make sure you have the `static` folder in the same directory as the litehook binary.
 > [!NOTE]
-> After that use the dashboard at <http://localhost:4101/> to configure the sources.
+> If you want to build the binary from source, see [Build](#build) section.
 
 ## How it works
 
@@ -45,6 +37,7 @@ Litehook works by scraping public telegram channels at a set interval, which doe
 
 - [Rust](https://rust-lang.org/tools/install/) version 1.93.0 or higher
 - [Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) version 1.93.0 or higher
+- [OpenSSL](https://www.openssl.org/) required for TDLib
 
 > [!TIP]
 > You can install Rust and Cargo by using [rustup](https://rustup.rs/).
