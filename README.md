@@ -17,7 +17,7 @@ Litehook is a self-hosted social media monitoring tool and webhook server. Suppo
 ### Docker (recommended)
 
 ```bash
-git clone https://github.com/KITFC-dev/litehook.git
+git clone https://github.com/tensake/litehook.git
 cd litehook
 docker compose up -d
 ```
